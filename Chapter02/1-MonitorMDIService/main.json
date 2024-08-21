@@ -1,0 +1,895 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.29.47.4906",
+      "templateHash": "6525390443933619835"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "workspaceName": {
+      "type": "string",
+      "defaultValue": "law-monitoring",
+      "metadata": {
+        "description": "Name of the Log Analytics Workspace."
+      }
+    },
+    "retentionInDays": {
+      "type": "int",
+      "defaultValue": 30,
+      "metadata": {
+        "description": "Log Analytics Workspace retention in days."
+      }
+    },
+    "dcr_name_vminsight": {
+      "type": "string",
+      "defaultValue": "MSVMI-ama-vmi-default-dcr",
+      "metadata": {
+        "description": "The name of the data collection rule for VM Insight, needs to have the suffix \"MSVMI-\""
+      }
+    },
+    "dcr_name_ct": {
+      "type": "string",
+      "defaultValue": "Microsoft-CT-DCR",
+      "metadata": {
+        "description": "The name for the data collection rule for Change Tracking and Inventory"
+      }
+    },
+    "vmNames": {
+      "type": "array",
+      "defaultValue": [
+        "CONTOSODC0",
+        "CONTOSOCS"
+      ],
+      "metadata": {
+        "description": "The names of the virtual machines that will be associated with the Data Collection Rule."
+      }
+    }
+  },
+  "resources": [
+    {
+      "copy": {
+        "name": "associationVMInsight",
+        "count": "[length(parameters('vmNames'))]"
+      },
+      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+      "apiVersion": "2022-06-01",
+      "scope": "[format('Microsoft.Compute/virtualMachines/{0}', parameters('vmNames')[copyIndex()])]",
+      "name": "[format('dcr-association-{0}', copyIndex())]",
+      "properties": {
+        "description": "Association of data collection rule. Deleting this association will break log ingestion described in the data collection rule.",
+        "dataCollectionRuleId": "[reference(resourceId('Microsoft.Resources/deployments', parameters('dcr_name_vminsight')), '2022-09-01').outputs.id.value]"
+      },
+      "dependsOn": [
+        "azureMonitorAgent",
+        "[resourceId('Microsoft.Resources/deployments', parameters('dcr_name_vminsight'))]",
+        "[resourceId('Microsoft.Resources/deployments', parameters('workspaceName'))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "associationChangeTracking",
+        "count": "[length(parameters('vmNames'))]"
+      },
+      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+      "apiVersion": "2022-06-01",
+      "scope": "[format('Microsoft.Compute/virtualMachines/{0}', parameters('vmNames')[copyIndex()])]",
+      "name": "[format('dcr-ct-association-{0}', copyIndex())]",
+      "properties": {
+        "description": "Association of data collection rule. Deleting this association will break log ingestion described in the data collection rule.",
+        "dataCollectionRuleId": "[reference(resourceId('Microsoft.Resources/deployments', parameters('dcr_name_ct')), '2022-09-01').outputs.id.value]"
+      },
+      "dependsOn": [
+        "azureMonitorAgent",
+        "[resourceId('Microsoft.Resources/deployments', parameters('dcr_name_ct'))]",
+        "[resourceId('Microsoft.Resources/deployments', parameters('workspaceName'))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "azureMonitorAgent",
+        "count": "[length(parameters('vmNames'))]"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('vmNames')[copyIndex()]]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmNames')[copyIndex()]]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "10935049425563025899"
+            }
+          },
+          "parameters": {
+            "vmName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2024-03-01",
+              "name": "[format('{0}/AzureMonitorWindowsAgent', parameters('vmName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "publisher": "Microsoft.Azure.Monitor",
+                "type": "AzureMonitorWindowsAgent",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "enableAutomaticUpgrade": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('workspaceName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "logAnalyticsWorkspaceName": {
+            "value": "[parameters('workspaceName')]"
+          },
+          "retentionInDays": {
+            "value": "[parameters('retentionInDays')]"
+          },
+          "sku": {
+            "value": "PerGB2018"
+          },
+          "dailyQuotaGb": {
+            "value": 1
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "14059826863356373824"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "logAnalyticsWorkspaceName": {
+              "type": "string"
+            },
+            "retentionInDays": {
+              "type": "int"
+            },
+            "sku": {
+              "type": "string"
+            },
+            "dailyQuotaGb": {
+              "type": "int"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2021-06-01",
+              "name": "[parameters('logAnalyticsWorkspaceName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "retentionInDays": "[parameters('retentionInDays')]",
+                "sku": {
+                  "name": "[parameters('sku')]"
+                },
+                "workspaceCapping": {
+                  "dailyQuotaGb": "[parameters('dailyQuotaGb')]"
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "workspaceResourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('workspaceName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "workspaceName": {
+            "value": "[parameters('workspaceName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "workspaceResourceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('workspaceName')), '2022-09-01').outputs.workspaceResourceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "7136833229427384089"
+            }
+          },
+          "parameters": {
+            "workspaceName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "workspaceResourceId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationsManagement/solutions",
+              "apiVersion": "2015-11-01-preview",
+              "name": "[format('ChangeTracking_{0}', parameters('workspaceName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "workspaceResourceId": "[parameters('workspaceResourceId')]"
+              },
+              "plan": {
+                "name": "[format('ChangeTracking_{0}', parameters('workspaceName'))]",
+                "product": "OMSGallery/ChangeTracking",
+                "publisher": "Microsoft"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "azureMonitorAgent",
+        "[resourceId('Microsoft.Resources/deployments', parameters('workspaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('dcr_name_vminsight')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "dcr_name": {
+            "value": "[parameters('dcr_name_vminsight')]"
+          },
+          "workspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('workspaceName')), '2022-09-01').outputs.workspaceResourceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "6404884843244837547"
+            }
+          },
+          "parameters": {
+            "dcr_name": {
+              "type": "string",
+              "defaultValue": "MSVMI-ama-vmi-default-dcr",
+              "metadata": {
+                "description": "The name of the data collection rule needs to have the suffix \"MSVMI-\""
+              }
+            },
+            "workspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "The resource ID of the target Log Analytics workspace e.g. /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sentinel/providers/Microsoft.OperationalInsights/workspaces/log-analytics-workspace"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Setting the location of the DCR as the same as the resource group"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2023-03-11",
+              "name": "[parameters('dcr_name')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "description": "Data collection rule for VM Insights.",
+                "dataSources": {
+                  "performanceCounters": [
+                    {
+                      "streams": [
+                        "Microsoft-InsightsMetrics"
+                      ],
+                      "samplingFrequencyInSeconds": 60,
+                      "counterSpecifiers": [
+                        "\\VmInsights\\DetailedMetrics"
+                      ],
+                      "name": "VMInsightsPerfCounters"
+                    }
+                  ],
+                  "extensions": [
+                    {
+                      "streams": [
+                        "Microsoft-ServiceMap"
+                      ],
+                      "extensionName": "DependencyAgent",
+                      "extensionSettings": {},
+                      "name": "DependencyAgentDataSource"
+                    },
+                    {
+                      "streams": [
+                        "Microsoft-ConfigurationChange",
+                        "Microsoft-ConfigurationChangeV2",
+                        "Microsoft-ConfigurationData"
+                      ],
+                      "extensionName": "ChangeTracking",
+                      "extensionSettings": {
+                        "enableFiles": true,
+                        "enableSoftware": true,
+                        "enableRegistry": true,
+                        "enableServices": true,
+                        "enableInventory": true,
+                        "registrySettings": {
+                          "registryCollectionFrequency": 3000,
+                          "registryInfo": [
+                            {
+                              "name": "Registry_1",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Group Policy\\Scripts\\Startup",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_2",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Group Policy\\Scripts\\Shutdown",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_3",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_4",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_5",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Classes\\Directory\\ShellEx\\ContextMenuHandlers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_6",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Classes\\Directory\\Background\\ShellEx\\ContextMenuHandlers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_7",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Classes\\Directory\\Shellex\\CopyHookHandlers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_8",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\ShellIconOverlayIdentifiers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_9",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Explorer\\ShellIconOverlayIdentifiers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_10",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Browser Helper Objects",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_11",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Browser Helper Objects",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_12",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Internet Explorer\\Extensions",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_13",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Internet Explorer\\Extensions",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_14",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Drivers32",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_15",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\Drivers32",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_16",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Session Manager\\KnownDlls",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_17",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\Notify",
+                              "valueName": ""
+                            }
+                          ]
+                        },
+                        "fileSettings": {
+                          "fileCollectionFrequency": 2700
+                        },
+                        "softwareSettings": {
+                          "softwareCollectionFrequency": 1800
+                        },
+                        "inventorySettings": {
+                          "inventoryCollectionFrequency": 36000
+                        },
+                        "serviceSettings": {
+                          "serviceCollectionFrequency": 1800
+                        }
+                      },
+                      "name": "CTDataSource-Windows"
+                    }
+                  ]
+                },
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "workspaceResourceId": "[parameters('workspaceId')]",
+                      "name": "VMInsightsPerf-Logs-Dest"
+                    }
+                  ]
+                },
+                "dataFlows": [
+                  {
+                    "streams": [
+                      "Microsoft-InsightsMetrics"
+                    ],
+                    "destinations": [
+                      "VMInsightsPerf-Logs-Dest"
+                    ]
+                  },
+                  {
+                    "streams": [
+                      "Microsoft-ServiceMap"
+                    ],
+                    "destinations": [
+                      "VMInsightsPerf-Logs-Dest"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcr_name'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "azureMonitorAgent",
+        "[resourceId('Microsoft.Resources/deployments', parameters('workspaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('dcr_name_ct')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "dcr_name": {
+            "value": "[parameters('dcr_name_ct')]"
+          },
+          "workspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', parameters('workspaceName')), '2022-09-01').outputs.workspaceResourceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "3565041368346503578"
+            }
+          },
+          "parameters": {
+            "dcr_name": {
+              "type": "string",
+              "defaultValue": "Microsoft-CT-DCR",
+              "metadata": {
+                "description": "The name of the data collection rule for Change Tracking and Inventory"
+              }
+            },
+            "workspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "The resource ID of the target Log Analytics workspace e.g. /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sentinel/providers/Microsoft.OperationalInsights/workspaces/log-analytics-workspace"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Setting the location of the DCR as the same as the resource group"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2023-03-11",
+              "name": "[parameters('dcr_name')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "description": "Data collection rule for Change Tracking and Inventory for Windows.",
+                "dataSources": {
+                  "extensions": [
+                    {
+                      "streams": [
+                        "Microsoft-ConfigurationChange",
+                        "Microsoft-ConfigurationChangeV2",
+                        "Microsoft-ConfigurationData"
+                      ],
+                      "extensionName": "ChangeTracking",
+                      "extensionSettings": {
+                        "enableFiles": true,
+                        "enableSoftware": true,
+                        "enableRegistry": true,
+                        "enableServices": true,
+                        "enableInventory": true,
+                        "registrySettings": {
+                          "registryCollectionFrequency": 3000,
+                          "registryInfo": [
+                            {
+                              "name": "Registry_1",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Group Policy\\Scripts\\Startup",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_2",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Group Policy\\Scripts\\Shutdown",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_3",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_4",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_5",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Classes\\Directory\\ShellEx\\ContextMenuHandlers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_6",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Classes\\Directory\\Background\\ShellEx\\ContextMenuHandlers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_7",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Classes\\Directory\\Shellex\\CopyHookHandlers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_8",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\ShellIconOverlayIdentifiers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_9",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Explorer\\ShellIconOverlayIdentifiers",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_10",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Browser Helper Objects",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_11",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Browser Helper Objects",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_12",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Internet Explorer\\Extensions",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_13",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Internet Explorer\\Extensions",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_14",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Drivers32",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_15",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\Software\\Wow6432Node\\Microsoft\\Windows NT\\CurrentVersion\\Drivers32",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_16",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\System\\CurrentControlSet\\Control\\Session Manager\\KnownDlls",
+                              "valueName": ""
+                            },
+                            {
+                              "name": "Registry_17",
+                              "groupTag": "Recommended",
+                              "enabled": false,
+                              "recurse": true,
+                              "description": "",
+                              "keyName": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\Notify",
+                              "valueName": ""
+                            }
+                          ]
+                        },
+                        "fileSettings": {
+                          "fileCollectionFrequency": 2700
+                        },
+                        "softwareSettings": {
+                          "softwareCollectionFrequency": 1800
+                        },
+                        "inventorySettings": {
+                          "inventoryCollectionFrequency": 36000
+                        },
+                        "serviceSettings": {
+                          "serviceCollectionFrequency": 1800
+                        }
+                      },
+                      "name": "CTDataSource-Windows"
+                    }
+                  ]
+                },
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "workspaceResourceId": "[parameters('workspaceId')]",
+                      "name": "Microsoft-CT-Dest"
+                    }
+                  ]
+                },
+                "dataFlows": [
+                  {
+                    "streams": [
+                      "Microsoft-ConfigurationChange",
+                      "Microsoft-ConfigurationChangeV2",
+                      "Microsoft-ConfigurationData"
+                    ],
+                    "destinations": [
+                      "Microsoft-CT-Dest"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcr_name'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "azureMonitorAgent",
+        "[resourceId('Microsoft.Resources/deployments', parameters('workspaceName'))]",
+        "[resourceId('Microsoft.Resources/deployments', parameters('workspaceName'))]"
+      ]
+    }
+  ]
+}
