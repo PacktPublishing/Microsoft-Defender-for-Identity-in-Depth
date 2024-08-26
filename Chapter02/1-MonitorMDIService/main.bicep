@@ -14,6 +14,9 @@ param dcr_name_vminsight string = 'MSVMI-ama-vmi-default-dcr'
 @description('The name for the data collection rule for Change Tracking and Inventory')
 param dcr_name_ct string = 'Microsoft-CT-DCR'
 
+@description('The path to the file to be collected, e.g. C:\\Logs\\CustomLog.json')
+param filePath string = 'C:\\temp\\MDIConfig\\MDI-configuration-report-CONTOSO.LOCAL.json'
+
 @description('The names of the virtual machines that will be associated with the Data Collection Rule.')
 param vmNames array = [
   'CONTOSODC0'
@@ -99,7 +102,9 @@ module dataCollectionRuleChangeTracking 'modules/datacollection/dcr_ChangeTracki
   params: {
     location: location
     dcr_name: dcr_name_ct
-    workspaceId: logAnalyticsWorkspace.outputs.workspaceResourceId
+    filePath: filePath
+    workspaceId: logAnalyticsWorkspace.outputs.workspaceId
+    workspaceResourceId: logAnalyticsWorkspace.outputs.workspaceResourceId
   }
   dependsOn: [
     logAnalyticsWorkspace
@@ -107,6 +112,21 @@ module dataCollectionRuleChangeTracking 'modules/datacollection/dcr_ChangeTracki
     changeTrackingSolution
   ]
 }
+
+// Deploy Change Tracking Extension on Windows VM
+module changeTrackingExtension 'modules/azuremonitoragent/changetrackingWindows.bicep' = [for vmName in vmNames: {
+  name: '${vmName}-windows.ChangeTracking-Windows'
+  params: {
+    vmName: vmName
+    location: location
+  }
+  dependsOn: [
+    vms
+    dataCollectionRuleChangeTracking
+    azureMonitorAgent
+    changeTrackingSolution
+  ]
+}]
 
 // Associate the data collection rule (Change Tracking) with the virtual machines
 resource associationChangeTracking 'Microsoft.Insights/dataCollectionRuleAssociations@2022-06-01' = [for (vmId, index) in vmNames : {

@@ -2,10 +2,16 @@
 param dcr_name string = 'Microsoft-CT-DCR'
 
 @description('The resource ID of the target Log Analytics workspace e.g. /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-sentinel/providers/Microsoft.OperationalInsights/workspaces/log-analytics-workspace')
+param workspaceResourceId string
+
+@description('The workspace ID of the target Log Analytics workspace')
 param workspaceId string
 
 @description('Setting the location of the DCR as the same as the resource group')
 param location string = resourceGroup().location
+
+@description('File path for the MDI configuration file')
+param filePath string
 
 resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
   name: dcr_name
@@ -187,6 +193,21 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
             }
             fileSettings: {
               fileCollectionFrequency: 2700
+              fileInfo: [
+                {
+                  name: 'MDIConfig'
+                  enabled: true
+                  description: ''
+                  path: filePath
+                  recursive: false
+                  uploadContent: true
+                  maxContentsReturnable: 5000000
+                  maxOutputSize: 0
+                  checksum: 'Md5'
+                  pathType: 'File'
+                  groupTag: 'Custom'
+                }
+              ]
             }
             softwareSettings: {
               softwareCollectionFrequency: 1800
@@ -195,17 +216,61 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
               inventoryCollectionFrequency: 36000
             }
             serviceSettings: {
-              serviceCollectionFrequency: 1800
+              serviceCollectionFrequency: 600
             }
           }
           name: 'CTDataSource-Windows'
         }
+        {
+          streams: [
+            'Microsoft-ConfigurationChange'
+            'Microsoft-ConfigurationChangeV2'
+            'Microsoft-ConfigurationData'
+          ]
+          extensionName: 'ChangeTracking-Linux'
+          extensionSettings: {
+            enableFiles: true
+            enableSoftware: true
+            enableRegistry: false
+            enableServices: true
+            enableInventory: true
+            fileSettings: {
+              fileCollectionFrequency: 900
+              fileInfo: [
+                {
+                  name: 'ChangeTrackingLinuxPath_default'
+                  enabled: true
+                  destinationPath: '/etc/.*.conf'
+                  useSudo: true
+                  recurse: true
+                  maxContentsReturnable: 5000000
+                  pathType: 'File'
+                  type: 'File'
+                  links: 'Follow'
+                  maxOutputSize: 500000
+                  groupTag: 'Recommended'
+                }
+              ]
+            }
+            softwareSettings: {
+              softwareCollectionFrequency: 300
+            }
+            inventorySettings: {
+              inventoryCollectionFrequency: 36000
+            }
+            servicesSettings: {
+              serviceCollectionFrequency: 300
+            }
+          }
+          name: 'CTDataSource-Linux'
+        }
       ]
-    }    
+    }
     destinations: {
       logAnalytics: [
         {
-          workspaceResourceId: workspaceId
+          workspaceResourceId: workspaceResourceId
+          workspaceId: workspaceId
           name: 'Microsoft-CT-Dest'
         }
       ]

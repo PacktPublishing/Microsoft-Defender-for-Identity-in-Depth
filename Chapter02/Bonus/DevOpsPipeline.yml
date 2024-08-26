@@ -1,0 +1,31 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      # Azure DevOps automatically handles authentication when using the built-in tasks and agents
+      # PowerShell script to check Defender for Identity health issues
+
+      # Placeholder for actual script to retrieve health issues
+      # Here we'll simulate retrieving an issue
+      $healthIssues = @("Issue detected with ID Identity123")
+
+      if ($healthIssues.Length -gt 0) {
+          foreach ($issue in $healthIssues) {
+              # Create a DevOps work item for each issue
+              Write-Host "Creating a task for: $issue"
+              echo "##vso[task.logissue type=warning;]Creating work item for issue: $issue"
+              # The command to create a work item in Azure DevOps
+              echo "##vso[task.addattachment type=Distributedtask.Core.TaskAttachmentLog;name=taskdetails;]$issue"
+          }
+      } else {
+          Write-Host "No health issues detected."
+      }
+
+  displayName: 'Check Defender for Identity Health and Create Task'

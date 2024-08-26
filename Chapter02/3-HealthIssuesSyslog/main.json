@@ -1,0 +1,993 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.29.47.4906",
+      "templateHash": "4748214470979712988"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "deploymentNumber": {
+      "type": "string",
+      "defaultValue": "1",
+      "metadata": {
+        "description": "When deploying the stack N times, define the instance - this will be appended to some resource names to avoid collisions."
+      }
+    },
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the virtual machines to be created"
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the virtual network, where the load balancer and virtual machines will be created"
+      }
+    },
+    "lbSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the subnet in the virtual network where the load balancers will be created. If not specified, will use the same subnet as the virtual machines"
+      }
+    },
+    "vmSubnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the subnet within the virtual network where the virtual machines will be connected to"
+      }
+    },
+    "virtualNetworkResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the Resource Group containing the Virtual Network"
+      }
+    },
+    "workspaceResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Resource Group where the existing Log Analyics workspace resides"
+      }
+    },
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace with Sentinel"
+      }
+    },
+    "dcrName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Data Collection Rule to be created"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "defaultValue": "[newGuid()]"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "SyslogSrvToDeploy": {
+      "type": "int",
+      "minValue": 1,
+      "maxValue": 4
+    },
+    "os": {
+      "type": "string",
+      "defaultValue": "Ubuntu"
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D2s_v5"
+    },
+    "storageAccountType": {
+      "type": "string"
+    },
+    "osDiskSize": {
+      "type": "int"
+    },
+    "dataDiskSize": {
+      "type": "int"
+    },
+    "adminUserName": {
+      "type": "string"
+    },
+    "deploymentNamePrefix": {
+      "type": "string"
+    },
+    "authenticationType": {
+      "type": "string",
+      "defaultValue": "password"
+    }
+  },
+  "variables": {
+    "shortenedLocation": "[if(equals(parameters('location'), 'westeurope'), 'weu', if(equals(parameters('location'), 'swedencentral'), 'sec', parameters('location')))]",
+    "resourceNameFormat": "[format('{{0}}-syslog-{0}-{1}', parameters('environment'), variables('shortenedLocation'))]",
+    "resourceNameFormat_storageAccount": "[format('{{0}}syslog{0}{1}', parameters('environment'), variables('shortenedLocation'))]",
+    "osDetails": {
+      "Ubuntu": {
+        "imageReference": {
+          "publisher": "canonical",
+          "offer": "0001-com-ubuntu-server-jammy",
+          "sku": "22_04-lts-gen2",
+          "version": "latest"
+        },
+        "configScriptName": "ubuntu_config.sh"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2021-04-01",
+      "name": "[format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}sa', parameters('deploymentNamePrefix'))]",
+      "resourceGroup": "[format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceNameFormat": {
+            "value": "[variables('resourceNameFormat_storageAccount')]"
+          },
+          "containerName": {
+            "value": "scripts"
+          },
+          "scriptUrl": {
+            "value": "https://raw.githubusercontent.com/pthoor/Microsoft-Defender-for-Identity-in-Depth/main/Chapter2/Bicep_Syslog/scripts/ubuntu_config.sh"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "8613563450816663053"
+            }
+          },
+          "parameters": {
+            "resourceNameFormat": {
+              "type": "string",
+              "defaultValue": "[format('{{0}}syslog{0}', uniqueString(resourceGroup().id, deployment().name))]",
+              "metadata": {
+                "description": "Format string of the resource names."
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "containerName": {
+              "type": "string"
+            },
+            "scriptUrl": {
+              "type": "string"
+            },
+            "storageContributorRoleDefinitionId": {
+              "type": "string",
+              "defaultValue": "[format('/subscriptions/{0}/providers/Microsoft.Authorization/roleDefinitions/17d1049b-9a84-46fb-8f53-869881c3d3ab', subscription().subscriptionId)]"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-05-01",
+              "name": "[format(parameters('resourceNameFormat'), 'sa')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard_LRS"
+              },
+              "kind": "StorageV2",
+              "properties": {
+                "accessTier": "Hot"
+              }
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format(parameters('resourceNameFormat'), 'sa'), 'default')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format(parameters('resourceNameFormat'), 'sa'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', format(parameters('resourceNameFormat'), 'sa'), 'default', parameters('containerName'))]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format(parameters('resourceNameFormat'), 'sa'), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "deploymentScriptIdentity",
+              "location": "[parameters('location')]"
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, 'deploymentScriptIdentity', 'dsRBAC')]",
+              "properties": {
+                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'deploymentScriptIdentity'), '2023-01-31').principalId]",
+                "roleDefinitionId": "[parameters('storageContributorRoleDefinitionId')]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'deploymentScriptIdentity')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2020-10-01",
+              "name": "uploadGitHubFileToStorage",
+              "kind": "AzurePowerShell",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'deploymentScriptIdentity'))]": {}
+                }
+              },
+              "properties": {
+                "azPowerShellVersion": "12.0",
+                "arguments": "[format('-storageAccountName {0} -resourceGroupName {1} -containerName {2} -fileUrl {3}', format(parameters('resourceNameFormat'), 'sa'), resourceGroup().name, parameters('containerName'), parameters('scriptUrl'))]",
+                "scriptContent": "    param (\n      [string] $storageAccountName,\n      [string] $resourceGroupName,\n      [string] $containerName,\n      [string] $fileUrl\n    )\n\n    Connect-AzAccount -Identity\n\n    $localFilePath = ${env:AZ_SCRIPTS_PATH_OUTPUT_DIRECTORY}\n\n    # Download the file from GitHub\n    Invoke-WebRequest -Uri $fileUrl -OutFile \"ubuntu_config.sh\"\n\n    Write-Host \"`n Creating blob in $containerName container\"\n\n    # Upload the file to Azure Storage\n    $stg = Get-AzStorageAccount -Name $storageAccountName -ResourceGroupName $resourceGroupName\n    $context = $stg.Context\n    $scriptFileUrl = Set-AzStorageBlobContent -File '.\\ubuntu_config.sh' -Container $containerName -Context $context -Force\n\n    Write-Host $scriptFileUrl.ICloudBlob.Uri.AbsoluteUri\n\n    $DeploymentScriptOutputs = @{}\n    $DeploymentScriptOutputs['scriptFileUrl'] = $scriptFileUrl.ICloudBlob.Uri.AbsoluteUri\n    ",
+                "cleanupPreference": "Always",
+                "retentionInterval": "PT1H"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'deploymentScriptIdentity')]",
+                "[resourceId('Microsoft.Authorization/roleAssignments', guid(resourceGroup().id, 'deploymentScriptIdentity', 'dsRBAC'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', format(parameters('resourceNameFormat'), 'sa'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format(parameters('resourceNameFormat'), 'sa'), 'default', parameters('containerName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "scriptFileUrl": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'uploadGitHubFileToStorage'), '2020-10-01').outputs.scriptFileUrl]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber')))]"
+      ]
+    },
+    {
+      "condition": "[greaterOrEquals(parameters('SyslogSrvToDeploy'), 2)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}lbi', parameters('deploymentNamePrefix'))]",
+      "resourceGroup": "[format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "subnetName": "[if(empty(parameters('lbSubnetName')), createObject('value', parameters('vmSubnetName')), createObject('value', parameters('lbSubnetName')))]",
+          "resourceNameFormat": {
+            "value": "[variables('resourceNameFormat')]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('virtualNetworkName')]"
+          },
+          "virtualNetworkResourceGroup": {
+            "value": "[parameters('virtualNetworkResourceGroup')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "638340685683134377"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "virtualNetworkName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Azure virtual network where the load balancer needs to be deployed."
+              }
+            },
+            "virtualNetworkResourceGroup": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the resource group where the virtual network is created."
+              }
+            },
+            "subnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the subnet in the virtual network where the load balancer needs to be deployed."
+              }
+            },
+            "resourceNameFormat": {
+              "type": "string",
+              "defaultValue": "{0}-syslog",
+              "metadata": {
+                "description": "Format string of the resource names."
+              }
+            }
+          },
+          "variables": {
+            "lbName": "[format(parameters('resourceNameFormat'), 'lbi')]",
+            "frontendName": "syslog-internal-frontend",
+            "backendName": "syslog-backend"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/loadBalancers",
+              "apiVersion": "2021-02-01",
+              "name": "[variables('lbName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard",
+                "tier": "Regional"
+              },
+              "properties": {
+                "frontendIPConfigurations": [
+                  {
+                    "name": "[variables('frontendName')]",
+                    "properties": {
+                      "subnet": {
+                        "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('virtualNetworkResourceGroup')), 'Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetName'))]"
+                      },
+                      "privateIPAllocationMethod": "Dynamic",
+                      "privateIPAddressVersion": "IPv4"
+                    }
+                  }
+                ],
+                "backendAddressPools": [
+                  {
+                    "name": "[variables('backendName')]"
+                  }
+                ],
+                "loadBalancingRules": [
+                  {
+                    "name": "syslog-rule-tcp",
+                    "properties": {
+                      "protocol": "Tcp",
+                      "frontendPort": 514,
+                      "backendPort": 514,
+                      "frontendIPConfiguration": {
+                        "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('lbName'), variables('frontendName'))]"
+                      },
+                      "backendAddressPool": {
+                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbName'), variables('backendName'))]"
+                      },
+                      "enableFloatingIP": false,
+                      "enableTcpReset": true
+                    }
+                  },
+                  {
+                    "name": "syslog-rule-udp",
+                    "properties": {
+                      "protocol": "Udp",
+                      "frontendPort": 514,
+                      "backendPort": 514,
+                      "frontendIPConfiguration": {
+                        "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('lbName'), variables('frontendName'))]"
+                      },
+                      "backendAddressPool": {
+                        "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbName'), variables('backendName'))]"
+                      },
+                      "enableFloatingIP": false,
+                      "enableTcpReset": true
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "outputs": {
+            "backendAddressPoolId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/loadBalancers', variables('lbName')), '2021-02-01').backendAddressPools[0].id]"
+            },
+            "frontendIP": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Network/loadBalancers', variables('lbName')), '2021-02-01').frontendIPConfigurations[0].properties.privateIPAddress]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber')))]"
+      ]
+    },
+    {
+      "condition": "[greaterOrEquals(parameters('SyslogSrvToDeploy'), 2)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}avail', parameters('deploymentNamePrefix'))]",
+      "resourceGroup": "[format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "resourceNameFormat": {
+            "value": "[variables('resourceNameFormat')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "15853009151830665777"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "resourceNameFormat": {
+              "type": "string",
+              "defaultValue": "{0}-syslog",
+              "metadata": {
+                "description": "Format string of the resource names."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Compute/proximityPlacementGroups",
+              "apiVersion": "2021-04-01",
+              "name": "[format(parameters('resourceNameFormat'), 'ppg')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "proximityPlacementGroupType": "Standard"
+              }
+            },
+            {
+              "type": "Microsoft.Compute/availabilitySets",
+              "apiVersion": "2021-04-01",
+              "name": "[format(parameters('resourceNameFormat'), 'avail')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Aligned"
+              },
+              "properties": {
+                "platformFaultDomainCount": 3,
+                "platformUpdateDomainCount": 2,
+                "proximityPlacementGroup": {
+                  "id": "[resourceId('Microsoft.Compute/proximityPlacementGroups', format(parameters('resourceNameFormat'), 'ppg'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/proximityPlacementGroups', format(parameters('resourceNameFormat'), 'ppg'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "avsetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Compute/availabilitySets', format(parameters('resourceNameFormat'), 'avail'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber')))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "vm",
+        "count": "[length(range(0, parameters('SyslogSrvToDeploy')))]"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}vm-{1}-{2}', parameters('deploymentNamePrefix'), parameters('vmName'), range(0, parameters('SyslogSrvToDeploy'))[copyIndex()])]",
+      "resourceGroup": "[format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vmName": {
+            "value": "[format('vm-{0}-{1}', parameters('vmName'), range(0, parameters('SyslogSrvToDeploy'))[copyIndex()])]"
+          },
+          "adminUserName": {
+            "value": "[parameters('adminUserName')]"
+          },
+          "osDetail": {
+            "value": "[variables('osDetails')[parameters('os')]]"
+          },
+          "nicName": {
+            "value": "[format('nic-{0}-{1}', parameters('vmName'), range(0, parameters('SyslogSrvToDeploy'))[copyIndex()])]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('virtualNetworkName')]"
+          },
+          "virtualNetworkResourceGroup": {
+            "value": "[parameters('virtualNetworkResourceGroup')]"
+          },
+          "subnetName": {
+            "value": "[parameters('vmSubnetName')]"
+          },
+          "osDiskName": {
+            "value": "[format('osDisk-{0}-{1}', parameters('vmName'), range(0, parameters('SyslogSrvToDeploy'))[copyIndex()])]"
+          },
+          "osDiskSize": {
+            "value": "[parameters('osDiskSize')]"
+          },
+          "dataDiskName": {
+            "value": "[format('dataDisk-{0}-{1}', parameters('vmName'), range(0, parameters('SyslogSrvToDeploy'))[copyIndex()])]"
+          },
+          "dataDiskSize": {
+            "value": "[parameters('dataDiskSize')]"
+          },
+          "storageAccountType": {
+            "value": "[parameters('storageAccountType')]"
+          },
+          "adminPasswordOrKey": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "vmSize": {
+            "value": "[parameters('vmSize')]"
+          },
+          "workspaceId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceResourceGroup')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').customerId]"
+          },
+          "workspaceKey": {
+            "value": "[listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceResourceGroup')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName')), '2015-11-01-preview').primarySharedKey]"
+          },
+          "scriptsLocation": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))), 'Microsoft.Resources/deployments', format('{0}sa', parameters('deploymentNamePrefix'))), '2022-09-01').outputs.scriptFileUrl.value]"
+          },
+          "lbiBackendAddressPoolId": "[if(greaterOrEquals(parameters('SyslogSrvToDeploy'), 2), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))), 'Microsoft.Resources/deployments', format('{0}lbi', parameters('deploymentNamePrefix'))), '2022-09-01').outputs.backendAddressPoolId.value), createObject('value', ''))]",
+          "avsetId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))), 'Microsoft.Resources/deployments', format('{0}avail', parameters('deploymentNamePrefix'))), '2022-09-01').outputs.avsetId.value]"
+          },
+          "authenticationType": {
+            "value": "[parameters('authenticationType')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "12302253926740807529"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "vmName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the virtual machine"
+              }
+            },
+            "nicName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the network interface card"
+              }
+            },
+            "virtualNetworkName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Azure virtual network where the virtual machines needs to be deployed"
+              }
+            },
+            "virtualNetworkResourceGroup": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the Resource Group containing the Virtual Network"
+              }
+            },
+            "subnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the virtual network subnet where the virtual machines should be created"
+              }
+            },
+            "lbiBackendAddressPoolId": {
+              "type": "string",
+              "metadata": {
+                "description": "The Azure resource ID of the backend pool of the internal load balancer"
+              }
+            },
+            "workspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "The GUID of the Log Analytics workspace (with Sentinel) where the syslog will forward events to"
+              }
+            },
+            "workspaceKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Log Analytics workspace key"
+              }
+            },
+            "adminPasswordOrKey": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Password for the local user account"
+              }
+            },
+            "avsetId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "adminUserName": {
+              "type": "string"
+            },
+            "vmSize": {
+              "type": "string",
+              "defaultValue": "Standard_D2s_v5"
+            },
+            "storageAccountType": {
+              "type": "string",
+              "allowedValues": [
+                "Standard_LRS",
+                "StandardSSD_LRS",
+                "Premium_LRS"
+              ],
+              "metadata": {
+                "description": "The storage account type for the OS and data disks"
+              }
+            },
+            "osDiskName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the OS disk"
+              }
+            },
+            "osDiskSize": {
+              "type": "int",
+              "allowedValues": [
+                30,
+                32,
+                64,
+                128,
+                256
+              ],
+              "metadata": {
+                "description": "The size of the OS disk in GB"
+              }
+            },
+            "dataDiskName": {
+              "type": "string",
+              "metadata": {
+                "description": "The name of the data disk"
+              }
+            },
+            "dataDiskSize": {
+              "type": "int",
+              "allowedValues": [
+                32,
+                64,
+                128,
+                256,
+                512,
+                1024
+              ],
+              "metadata": {
+                "description": "The size of the data disk in GB"
+              }
+            },
+            "authenticationType": {
+              "type": "string",
+              "allowedValues": [
+                "ssh",
+                "password"
+              ]
+            },
+            "osDetail": {
+              "type": "object",
+              "defaultValue": {
+                "imageReference": {
+                  "publisher": "canonical",
+                  "offer": "0001-com-ubuntu-server-focal",
+                  "sku": "22_04-lts",
+                  "version": "latest"
+                },
+                "configScriptName": "ubuntu_config.sh"
+              },
+              "metadata": {
+                "description": "The image reference and filename of the OS configuration script which contains syslog configuration"
+              }
+            },
+            "scriptsLocation": {
+              "type": "string",
+              "metadata": {
+                "description": "The URL of the configuration scripts"
+              }
+            },
+            "scriptsLocationAccessToken": {
+              "type": "string",
+              "defaultValue": ""
+            }
+          },
+          "variables": {
+            "linuxSshConfiguration": {
+              "disablePasswordAuthentication": true,
+              "ssh": {
+                "publicKeys": [
+                  {
+                    "path": "[format('/home/{0}/.ssh/authorized_keys', parameters('adminUserName'))]",
+                    "keyData": "[parameters('adminPasswordOrKey')]"
+                  }
+                ]
+              }
+            },
+            "configScript": "[uri(format('{0}{1}', parameters('scriptsLocation'), parameters('osDetail').configScriptName), format('{0}', parameters('scriptsLocationAccessToken')))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2021-02-01",
+              "name": "[parameters('nicName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "enableAcceleratedNetworking": true,
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "subnet": {
+                        "id": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('virtualNetworkResourceGroup')), 'Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), parameters('subnetName'))]"
+                      },
+                      "loadBalancerBackendAddressPools": "[if(empty(parameters('lbiBackendAddressPoolId')), null(), createArray(createObject('id', parameters('lbiBackendAddressPoolId'))))]"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2023-09-01",
+              "name": "[parameters('vmName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "availabilitySet": "[if(empty(parameters('avsetId')), null(), createObject('id', parameters('avsetId')))]",
+                "hardwareProfile": {
+                  "vmSize": "[parameters('vmSize')]"
+                },
+                "storageProfile": {
+                  "imageReference": "[parameters('osDetail').imageReference]",
+                  "osDisk": {
+                    "name": "[parameters('osDiskName')]",
+                    "osType": "Linux",
+                    "diskSizeGB": "[parameters('osDiskSize')]",
+                    "createOption": "FromImage",
+                    "caching": "ReadWrite",
+                    "managedDisk": {
+                      "storageAccountType": "[parameters('storageAccountType')]"
+                    },
+                    "deleteOption": "Delete"
+                  },
+                  "dataDisks": [
+                    {
+                      "name": "[parameters('dataDiskName')]",
+                      "lun": 0,
+                      "diskSizeGB": "[parameters('dataDiskSize')]",
+                      "createOption": "Empty",
+                      "caching": "ReadWrite",
+                      "managedDisk": {
+                        "storageAccountType": "[parameters('storageAccountType')]"
+                      },
+                      "deleteOption": "Delete"
+                    }
+                  ]
+                },
+                "osProfile": {
+                  "computerName": "[parameters('vmName')]",
+                  "adminUsername": "[parameters('adminUserName')]",
+                  "adminPassword": "[parameters('adminPasswordOrKey')]",
+                  "linuxConfiguration": "[if(equals(parameters('authenticationType'), 'password'), null(), variables('linuxSshConfiguration'))]"
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('nicName'))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('nicName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', parameters('vmName'), 'syslog-ConfigScript')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "autoUpgradeMinorVersion": true,
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.1",
+                "protectedSettings": {
+                  "commandToExecute": "[format('bash {0} -w {1} -k {2}', parameters('osDetail').configScriptName, parameters('workspaceId'), parameters('workspaceKey'))]",
+                  "fileUris": [
+                    "[variables('configScript')]"
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))), 'Microsoft.Resources/deployments', format('{0}avail', parameters('deploymentNamePrefix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))), 'Microsoft.Resources/deployments', format('{0}lbi', parameters('deploymentNamePrefix')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))), 'Microsoft.Resources/deployments', format('{0}sa', parameters('deploymentNamePrefix')))]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}dcr', parameters('deploymentNamePrefix'))]",
+      "resourceGroup": "[format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "dcrName": {
+            "value": "[parameters('dcrName')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceResourceGroup')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "14073738965422216104"
+            }
+          },
+          "parameters": {
+            "dcrName": {
+              "type": "string"
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string"
+            },
+            "streamName": {
+              "type": "string",
+              "defaultValue": "Microsoft-Syslog"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2023-03-11",
+              "name": "[parameters('dcrName')]",
+              "location": "[resourceGroup().location]",
+              "kind": "Linux",
+              "properties": {
+                "dataFlows": [
+                  {
+                    "streams": [
+                      "[parameters('streamName')]"
+                    ],
+                    "destinations": [
+                      "logAnalytics"
+                    ]
+                  }
+                ],
+                "dataSources": {
+                  "syslog": [
+                    {
+                      "facilityNames": [
+                        "alert",
+                        "audit",
+                        "auth",
+                        "authpriv",
+                        "cron",
+                        "daemon",
+                        "ftp",
+                        "kern",
+                        "local0",
+                        "local1",
+                        "local2",
+                        "local3",
+                        "local4",
+                        "local5",
+                        "local6",
+                        "local7",
+                        "lpr",
+                        "mail",
+                        "mark",
+                        "news",
+                        "nopri",
+                        "ntp",
+                        "syslog",
+                        "user",
+                        "uucp"
+                      ],
+                      "name": "syslog",
+                      "streams": [
+                        "[parameters('streamName')]"
+                      ],
+                      "logLevels": [
+                        "Info"
+                      ]
+                    }
+                  ]
+                },
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "name": "logAnalytics",
+                      "workspaceResourceId": "[parameters('logAnalyticsWorkspaceId')]"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format(variables('resourceNameFormat'), 'rg', parameters('deploymentNumber')))]"
+      ]
+    }
+  ]
+}
