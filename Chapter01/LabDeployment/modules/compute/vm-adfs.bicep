@@ -49,7 +49,7 @@ var adfsPubIpName = 'adfs-pip'
 var domainJoinOptions = '3'
 var imageOffer = 'WindowsServer'
 var imagePublisher = 'MicrosoftWindowsServer'
-var imageSKU = '2012-R2-Datacenter'
+var imageSKU = '2022-Datacenter'
 var wapNICName = 'wap-${NetworkInterfaceName}'
 var wapPubIpName = 'wap-pip'
 

@@ -166,6 +166,7 @@ var wapVMName = toUpper('${companyNamePrefix}${wapVMNameSuffix}')
 //var adDSCTemplate = '${assetLocation}scripts/adDSCConfiguration.zip'
 var DeployADFSFarmTemplate = 'InstallADFS.ps1'
 var DeployADFSFarmTemplateUri = '${assetLocation}scripts/InstallADFS.ps1'
+var gMSA_ADFS = 'gMSA_ADFS'
 var CopyCertToWAPTemplate = 'CopyCertToWAP.ps1'
 var CopyCertToWAPTemplateUri = '${assetLocation}scripts/CopyCertToWAP.ps1'
 var InstallADCSTemplateUri = '${assetLocation}scripts/InstallADCS.ps1'
@@ -357,7 +358,7 @@ resource adfsVMName_1_InstallADFS 'Microsoft.Compute/virtualMachines/extensions@
       fileUris: [
         DeployADFSFarmTemplateUri
       ]
-      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${DeployADFSFarmTemplate} -Acct ${adminUsername} -PW ${adminPassword} -WapFqdn ${WAPPubIpDnsFQDN}'
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${DeployADFSFarmTemplate} -Acct ${adminUsername} -PW ${adminPassword} -WapFqdn ${WAPPubIpDnsFQDN} -gMSA_ADFS ${gMSA_ADFS}'
     }
   }
   dependsOn: [

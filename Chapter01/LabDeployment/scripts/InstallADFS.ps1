@@ -7,6 +7,9 @@ param (
 
 	[Parameter(Mandatory)]
 	[string]$WapFqdn
+
+	[Parameter(Mandatory)]
+	[string]$gMSA_ADFS
 )
 
 #Forcing TLS 1.2 on calls from this script
@@ -31,7 +34,7 @@ if (-not $elevated) {
     $cl = "-Acct $($a.Acct) -PW $($a.PW)"
     $arglist = (@("-file", (join-path $psscriptroot $myinvocation.mycommand)) + $args + $cl)
     Write-host "Not elevated, restarting as admin..."
-    Start-Process cmd.exe -Credential $DomainCreds -NoNewWindow -ArgumentList “/c powershell.exe $arglist”
+    Start-Process cmd.exe -Credential $DomainCreds -NoNewWindow -ArgumentList "/c powershell.exe $arglist"
 } else {
     Write-Host "Elevated, continuing..." -Verbose
 
@@ -57,13 +60,11 @@ if (-not $elevated) {
         Write-Host "Farm already configured" -Verbose
 	}
 	catch {
-        Install-AdfsFarm `
-            -Credential $DomainCreds `
-            -CertificateThumbprint $cert.thumbprint `
-            -FederationServiceName $Subject `
-            -FederationServiceDisplayName "ADFS $Index" `
-            -ServiceAccountCredential $DomainCreds `
-            -OverwriteConfiguration
+		Install-AdfsFarm `
+			-CertificateThumbprint $cert.thumbprint `
+			-FederationServiceName $Subject `
+			-ServiceAccountCredential (Get-ADServiceAccount $gMSA_ADFS) `
+			-OverwriteConfiguration
 
         Write-Host "Farm configured" -Verbose
 	}
