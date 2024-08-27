@@ -1,0 +1,2949 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.29.47.4906",
+      "templateHash": "17534939319795033832"
+    }
+  },
+  "parameters": {
+    "assetLocation": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter01/LabDeployment/",
+      "metadata": {
+        "description": "This is the location in which all the linked templates are stored."
+      }
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "standard",
+      "metadata": {
+        "description": "Globally unique Vault name must only contain alphanumeric characters and dashes and cannot start with a number."
+      }
+    },
+    "skuCode": {
+      "type": "string",
+      "defaultValue": "A"
+    },
+    "objectId": {
+      "type": "string",
+      "metadata": {
+        "description": "The object ID of the user or service principal that will be granted access to the Key Vault."
+      }
+    },
+    "environmentName": {
+      "type": "string",
+      "defaultValue": "contoso",
+      "metadata": {
+        "description": "The overall environment name for the deployment."
+      }
+    },
+    "logAnalyticsWorkspaceRetention": {
+      "type": "int",
+      "defaultValue": 30,
+      "minValue": 30,
+      "maxValue": 730,
+      "metadata": {
+        "description": "Duration to retain Log Analytics workspace data, in days. Note that the pay-as-you-go pricing tier has a minimum 30-day retention."
+      }
+    },
+    "logAnalyticsWorkspaceDailyQuota": {
+      "type": "int",
+      "defaultValue": 5,
+      "minValue": 1,
+      "maxValue": 10,
+      "metadata": {
+        "description": "Daily quota for Log Analytics workspace data ingestion, in GB."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "localAdmin",
+      "metadata": {
+        "description": "Username to set for the local User. Cannot be \"Administrator\", \"root\" and possibly other such common account names. "
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "defaultValue": "rP_LZmhEzhQ3KF3",
+      "metadata": {
+        "description": "Password for the local administrator account. Cannot be \"P@ssw0rd\" and possibly other such common passwords. Must be 8 characters long and three of the following complexity requirements: uppercase, lowercase, number, special character"
+      }
+    },
+    "adDomainName": {
+      "type": "string",
+      "defaultValue": "contoso.local",
+      "metadata": {
+        "description": "Two-part internal AD name - short/NB name will be first part ('contoso')."
+      }
+    },
+    "AdfsFarmCount": {
+      "type": "string",
+      "defaultValue": "1",
+      "allowedValues": [
+        "1",
+        "2"
+      ],
+      "metadata": {
+        "description": "An ADFS/WAP server combo will be setup independently this number of times. NOTE: it's unlikely to ever need more than one - additional farm counts are for edge case testing."
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_B2ms",
+      "allowedValues": [
+        "Standard_A1_v2",
+        "Standard_A2_v2",
+        "Standard_A4_v2",
+        "Standard_A2M_v2",
+        "Standard_A4M_v2",
+        "Standard_A4_v2",
+        "Standard_D2_v2",
+        "Standard_D3_v2",
+        "Standard_D11_v2",
+        "Standard_D12_v2",
+        "Standard_B2ms",
+        "Standard_B2s",
+        "Standard_B4ms"
+      ],
+      "metadata": {
+        "description": "Select a VM SKU (please ensure the SKU is available in your selected region)."
+      }
+    },
+    "virtualNetworkAddressRange": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/16",
+      "metadata": {
+        "description": "The address range of the new virtual network in CIDR format"
+      }
+    },
+    "adSubnetAddressRange": {
+      "type": "string",
+      "defaultValue": "10.0.1.0/24",
+      "metadata": {
+        "description": "The address range of the desired subnet for Active Directory."
+      }
+    },
+    "adIP": {
+      "type": "string",
+      "defaultValue": "10.0.1.4",
+      "metadata": {
+        "description": "The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail."
+      }
+    },
+    "adfsIP": {
+      "type": "string",
+      "defaultValue": "10.0.1.8",
+      "metadata": {
+        "description": "The IP Addresses assigned to the AD FS servers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail."
+      }
+    },
+    "adcsIP": {
+      "type": "string",
+      "defaultValue": "10.0.1.6",
+      "metadata": {
+        "description": "The IP Addresses assigned to the ADCS servers (a, b). Remember the first IP in a subnet is .4 e.g."
+      }
+    },
+    "dmzSubnetAddressRange": {
+      "type": "string",
+      "defaultValue": "10.0.2.0/24",
+      "metadata": {
+        "description": "The address range of the desired subnet for the DMZ."
+      }
+    },
+    "cliSubnetAddressRange": {
+      "type": "string",
+      "defaultValue": "10.0.3.0/24",
+      "metadata": {
+        "description": "The address range of the desired subnet for clients (Reserved for future use)"
+      }
+    },
+    "bastionSubnetAddressRange": {
+      "type": "string",
+      "defaultValue": "10.0.4.0/26",
+      "metadata": {
+        "description": "The address range of the desired subnet for Azure Bastion."
+      }
+    },
+    "srvSubnetAddressRange": {
+      "type": "string",
+      "defaultValue": "10.0.5.0/26",
+      "metadata": {
+        "description": "The address range of the desired subnet for servers."
+      }
+    },
+    "AdSrvToDeploy": {
+      "type": "int",
+      "defaultValue": 1,
+      "allowedValues": [
+        1,
+        2
+      ],
+      "metadata": {
+        "description": "AdSrvToDeploy, possible values: 1-2."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "region": {
+      "type": "string",
+      "defaultValue": "weu",
+      "metadata": {
+        "description": "Short name (three letters, e.g. \"weu\" for West Europe) of the region in which the deployment will take place."
+      }
+    }
+  },
+  "variables": {
+    "kvName": "[format('kv{0}', uniqueString(resourceGroup().id))]",
+    "automationaccountname": "[format('aa{0}', uniqueString(resourceGroup().id))]",
+    "logAnalyticsWorkspaceName": "[format('la{0}', uniqueString(resourceGroup().id))]",
+    "adfsDeployCount": "[int(parameters('AdfsFarmCount'))]",
+    "networkInterfaceName": "nic",
+    "addcVMNameSuffix": "dc",
+    "adcsVMNameSuffix": "cs",
+    "adfsVMNameSuffix": "adfs",
+    "wapVMNameSuffix": "wap",
+    "adfsVMName": "[toUpper(format('{0}', variables('adfsVMNameSuffix')))]",
+    "adVMName": "[toUpper(format('{0}', variables('addcVMNameSuffix')))]",
+    "adcsVMName": "[toUpper(format('{0}', variables('adcsVMNameSuffix')))]",
+    "adNSGName": "nsg-int-ad",
+    "virtualNetworkName": "[format('vnet-{0}-{1}-001', parameters('environmentName'), parameters('region'))]",
+    "adSubnetName": "[format('snet-ad-{0}-001', parameters('region'))]",
+    "bastionSubnetName": "AzureBastionSubnet",
+    "bastionNSGName": "nsg-bastion",
+    "dmzNSGName": "nsg-dmz-wap",
+    "dmzSubnetName": "[format('snet-dmz-{0}-001', parameters('region'))]",
+    "cliNSGName": "nsg-int-cli",
+    "cliSubnetName": "[format('snet-client-{0}-001', parameters('region'))]",
+    "srvNSGName": "nsg-int-cli",
+    "srvSubnetName": "[format('snet-srv-{0}-001', parameters('region'))]",
+    "publicIPAddressDNSName": "[toLower(format('-adfs-{0}', uniqueString(resourceGroup().id)))]",
+    "wapVMName": "[toUpper(format('{0}', variables('wapVMNameSuffix')))]",
+    "DeployADFSFarmTemplate": "InstallADFS.ps1",
+    "DeployADFSFarmTemplateUri": "[format('{0}scripts/InstallADFS.ps1', parameters('assetLocation'))]",
+    "gMSA_ADFS": "ADFSGMSA",
+    "CopyCertToWAPTemplate": "CopyCertToWAP.ps1",
+    "CopyCertToWAPTemplateUri": "[format('{0}scripts/CopyCertToWAP.ps1', parameters('assetLocation'))]",
+    "InstallADCSTemplateUri": "[format('{0}scripts/InstallADCS.ps1', parameters('assetLocation'))]",
+    "InitialMDIConfigTemplateUri": "[format('{0}scripts/InitialMDIConfig.ps1', parameters('assetLocation'))]",
+    "adfsDSCTemplate": "[format('{0}scripts/adfsDSC.zip', parameters('assetLocation'))]",
+    "adfsDSCConfigurationFunction": "adfsDSCConfiguration.ps1\\Main",
+    "wapDSCConfigurationFunction": "wapDSCConfiguration.ps1\\Main",
+    "WAPPubIpDnsFQDN": "[format('{0}{{0}}.{1}.cloudapp.azure.com', variables('publicIPAddressDNSName'), toLower(replace(parameters('location'), ' ', '')))]"
+  },
+  "resources": [
+    {
+      "copy": {
+        "name": "adfsVMName_1_InstallADFS",
+        "count": "[length(range(0, variables('adfsDeployCount')))]"
+      },
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2022-08-01",
+      "name": "[format('{0}{1}/InstallADFS', variables('adfsVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "displayName": "DeployADFSFarm"
+      },
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[variables('DeployADFSFarmTemplateUri')]"
+          ],
+          "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -File {0} -Acct {1} -PW {2} -WapFqdn {3} -gMSA_ADFS {4}', variables('DeployADFSFarmTemplate'), parameters('adminUsername'), parameters('adminPassword'), variables('WAPPubIpDnsFQDN'), variables('gMSA_ADFS'))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'adfsVMs')]",
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', split(format('{0}0/InitialMDIConfig', variables('adVMName')), '/')[0], split(format('{0}0/InitialMDIConfig', variables('adVMName')), '/')[1])]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "wapVMName_1_CopyCertToWAP",
+        "count": "[length(range(0, variables('adfsDeployCount')))]"
+      },
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2022-08-01",
+      "name": "[format('{0}{1}/CopyCertToWAP', variables('wapVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "displayName": "ConfigureWAP"
+      },
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[variables('CopyCertToWAPTemplateUri')]"
+          ],
+          "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -File {0} -DCFQDN {1}.{2} -adminuser {3} -password {4} -instance {5} -WapFqdn {6}', variables('CopyCertToWAPTemplate'), variables('adVMName'), parameters('adDomainName'), parameters('adminUsername'), parameters('adminPassword'), range(0, variables('adfsDeployCount'))[copyIndex()], variables('WAPPubIpDnsFQDN'))]"
+        }
+      },
+      "dependsOn": [
+        "adfsVMName_1_InstallADFS",
+        "[resourceId('Microsoft.Resources/deployments', 'adfsVMs')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2015-06-15",
+      "name": "[format('{0}/InstallADCS', variables('adcsVMName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[variables('InstallADCSTemplateUri')]"
+          ],
+          "commandToExecute": "powershell.exe -ExecutionPolicy Bypass -File InstallADCS.ps1"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'adcsVM')]",
+        "adfsVMName_1_InstallADFS"
+      ]
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2021-09-01-preview",
+      "name": "DCR",
+      "location": "[parameters('location')]",
+      "kind": "Windows",
+      "tags": {
+        "createdBy": "Sentinel"
+      },
+      "properties": {
+        "dataFlows": [
+          {
+            "destinations": [
+              "[variables('logAnalyticsWorkspaceName')]"
+            ],
+            "streams": [
+              "Microsoft-SecurityEvent"
+            ]
+          }
+        ],
+        "dataSources": {
+          "windowsEventLogs": [
+            {
+              "name": "windowsSecurityEventLogs",
+              "streams": [
+                "Microsoft-SecurityEvent"
+              ],
+              "xPathQueries": [
+                "Security!*[System[(EventID=1) or (EventID=299) or (EventID=300) or (EventID=324) or (EventID=340) or (EventID=403) or (EventID=404) or (EventID=410) or (EventID=411) or (EventID=412) or (EventID=413) or (EventID=431) or (EventID=500) or (EventID=501) or (EventID=1100)]]",
+                "Security!*[System[(EventID=1102) or (EventID=1107) or (EventID=1108) or (EventID=4608) or (EventID=4610) or (EventID=4611) or (EventID=4614) or (EventID=4622) or (EventID=4624) or (EventID=4625) or (EventID=4634) or (EventID=4647) or (EventID=4648) or (EventID=4649) or (EventID=4657)]]",
+                "Security!*[System[(EventID=4661) or (EventID=4662) or (EventID=4663) or (EventID=4665) or (EventID=4666) or (EventID=4667) or (EventID=4688) or (EventID=4670) or (EventID=4672) or (EventID=4673) or (EventID=4674) or (EventID=4675) or (EventID=4689) or (EventID=4697) or (EventID=4700)]]",
+                "Security!*[System[(EventID=4702) or (EventID=4704) or (EventID=4705) or (EventID=4716) or (EventID=4717) or (EventID=4718) or (EventID=4719) or (EventID=4720) or (EventID=4722) or (EventID=4723) or (EventID=4724) or (EventID=4725) or (EventID=4726) or (EventID=4727) or (EventID=4728)]]",
+                "Security!*[System[(EventID=4729) or (EventID=4733) or (EventID=4732) or (EventID=4735) or (EventID=4737) or (EventID=4738) or (EventID=4739) or (EventID=4740) or (EventID=4742) or (EventID=4744) or (EventID=4745) or (EventID=4746) or (EventID=4750) or (EventID=4751) or (EventID=4752)]]",
+                "Security!*[System[(EventID=4754) or (EventID=4755) or (EventID=4756) or (EventID=4757) or (EventID=4760) or (EventID=4761) or (EventID=4762) or (EventID=4764) or (EventID=4767) or (EventID=4768) or (EventID=4771) or (EventID=4774) or (EventID=4778) or (EventID=4779) or (EventID=4781)]]",
+                "Security!*[System[(EventID=4793) or (EventID=4797) or (EventID=4798) or (EventID=4799) or (EventID=4800) or (EventID=4801) or (EventID=4802) or (EventID=4803) or (EventID=4825) or (EventID=4826) or (EventID=4870) or (EventID=4886) or (EventID=4887) or (EventID=4888) or (EventID=4893)]]",
+                "Security!*[System[(EventID=4898) or (EventID=4902) or (EventID=4904) or (EventID=4905) or (EventID=4907) or (EventID=4931) or (EventID=4932) or (EventID=4933) or (EventID=4946) or (EventID=4948) or (EventID=4956) or (EventID=4985) or (EventID=5024) or (EventID=5033) or (EventID=5059)]]",
+                "Security!*[System[(EventID=5136) or (EventID=5137) or (EventID=5140) or (EventID=5145) or (EventID=5632) or (EventID=6144) or (EventID=6145) or (EventID=6272) or (EventID=6273) or (EventID=6278) or (EventID=6416) or (EventID=6423) or (EventID=6424) or (EventID=8001) or (EventID=8002)]]",
+                "Security!*[System[(EventID=8003) or (EventID=8004) or (EventID=8005) or (EventID=8006) or (EventID=8007) or (EventID=8222) or (EventID=26401) or (EventID=30004)]]",
+                "Microsoft-Windows-AppLocker/EXE and DLL!*[System[(EventID=8001) or (EventID=8002) or (EventID=8003) or (EventID=8004)]]",
+                "Microsoft-Windows-AppLocker/MSI and Script!*[System[(EventID=8005) or (EventID=8006) or (EventID=8007)]]"
+              ]
+            }
+          ]
+        },
+        "description": "Data collection rule to collect common Windows security events.",
+        "destinations": {
+          "logAnalytics": [
+            {
+              "name": "[variables('logAnalyticsWorkspaceName')]",
+              "workspaceResourceId": "[reference(resourceId('Microsoft.Resources/deployments', 'microsoftSentinel'), '2022-09-01').outputs.workspaceResourceId.value]"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'microsoftSentinel')]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "domainControllerAssociation",
+        "count": "[length(range(0, parameters('AdSrvToDeploy')))]"
+      },
+      "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+      "apiVersion": "2021-04-01",
+      "scope": "[format('Microsoft.Compute/virtualMachines/{0}', format('{0}{1}', variables('adVMName'), range(0, parameters('AdSrvToDeploy'))[range(0, parameters('AdSrvToDeploy'))[copyIndex()]]))]",
+      "name": "[format('{0}{1}-dcra', 'adVMs', range(0, parameters('AdSrvToDeploy'))[copyIndex()])]",
+      "properties": {
+        "dataCollectionRuleId": "[resourceId('Microsoft.Insights/dataCollectionRules', 'DCR')]"
+      },
+      "dependsOn": [
+        "adVMs",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', 'DCR')]",
+        "[resourceId('Microsoft.Resources/deployments', 'microsoftSentinel')]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/{1}', variables('kvName'), parameters('adminUsername'))]",
+      "properties": {
+        "value": "[parameters('adminPassword')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', variables('kvName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2015-06-15",
+      "name": "[format('{0}0/InitialMDIConfig', variables('adVMName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[variables('InitialMDIConfigTemplateUri')]"
+          ],
+          "commandToExecute": "powershell.exe -ExecutionPolicy Bypass -File InitialMDIConfig.ps1"
+        }
+      },
+      "dependsOn": [
+        "adVMs",
+        "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[variables('kvName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "objectId": {
+            "value": "[parameters('objectId')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "sku": {
+            "value": "[parameters('sku')]"
+          },
+          "skuCode": {
+            "value": "[parameters('skuCode')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "577306590188208421"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "The Azure Region to deploy the resources into"
+              }
+            },
+            "tenantId": {
+              "type": "string",
+              "defaultValue": "[subscription().tenantId]",
+              "metadata": {
+                "description": "Specifies the Azure Active Directory tenant ID that should be used for authenticating requests to the key vault. Get it by using Get-AzSubscription cmdlet."
+              }
+            },
+            "objectId": {
+              "type": "string",
+              "metadata": {
+                "description": "Specifies the object ID of a user, service principal or security group in the Azure Active Directory tenant for the vault. The object ID must be unique for the list of access policies. Get it by using Get-AzADUser or Get-AzADServicePrincipal cmdlets."
+              }
+            },
+            "sku": {
+              "type": "string",
+              "metadata": {
+                "description": "Key Vault SKU"
+              }
+            },
+            "skuCode": {
+              "type": "string"
+            },
+            "secretsPermissions": {
+              "type": "array",
+              "defaultValue": [
+                "get",
+                "list"
+              ],
+              "metadata": {
+                "description": "Specifies the permissions to secrets in the vault. Valid values are: all, get, list, set, delete, backup, restore, recover, and purge."
+              }
+            }
+          },
+          "variables": {
+            "kvName": "[format('kv{0}', uniqueString(resourceGroup().id))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.KeyVault/vaults",
+              "apiVersion": "2021-10-01",
+              "name": "[variables('kvName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "createMode": "default",
+                "enabledForDeployment": true,
+                "enabledForDiskEncryption": true,
+                "enabledForTemplateDeployment": true,
+                "enableSoftDelete": true,
+                "enableRbacAuthorization": false,
+                "enablePurgeProtection": true,
+                "sku": {
+                  "family": "[parameters('skuCode')]",
+                  "name": "[parameters('sku')]"
+                },
+                "accessPolicies": [
+                  {
+                    "objectId": "[parameters('objectId')]",
+                    "permissions": {
+                      "secrets": "[parameters('secretsPermissions')]"
+                    },
+                    "tenantId": "[parameters('tenantId')]"
+                  }
+                ],
+                "softDeleteRetentionInDays": 7,
+                "tenantId": "[parameters('tenantId')]"
+              }
+            }
+          ],
+          "outputs": {
+            "kvUri": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('kvName')), '2021-10-01').vaultUri]"
+            },
+            "kvName": {
+              "type": "string",
+              "value": "[variables('kvName')]"
+            },
+            "location": {
+              "type": "string",
+              "value": "[parameters('location')]"
+            },
+            "resourceGroupName": {
+              "type": "string",
+              "value": "[resourceGroup().name]"
+            },
+            "kvresourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.KeyVault/vaults', variables('kvName'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "automationaccount",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "automationaccountname": {
+            "value": "[variables('automationaccountname')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "9606902810894157423"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "The Azure Region to deploy the resources into"
+              }
+            },
+            "automationaccountname": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Automation/automationAccounts",
+              "apiVersion": "2022-08-08",
+              "name": "[parameters('automationaccountname')]",
+              "location": "[parameters('location')]",
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "publicNetworkAccess": true,
+                "sku": {
+                  "family": "string",
+                  "name": "Basic"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Automation/automationAccounts/modules",
+              "apiVersion": "2022-08-08",
+              "name": "[format('{0}/ActiveDirectoryDsc', parameters('automationaccountname'))]",
+              "properties": {
+                "contentLink": {
+                  "uri": "https://www.powershellgallery.com/api/v2/package/ActiveDirectoryDsc/6.2.0",
+                  "version": "6.2.0"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationaccountname'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Automation/automationAccounts/modules",
+              "apiVersion": "2022-08-08",
+              "name": "[format('{0}/ComputerManagementDsc', parameters('automationaccountname'))]",
+              "properties": {
+                "contentLink": {
+                  "uri": "https://www.powershellgallery.com/api/v2/package/ComputerManagementDsc/8.5.0",
+                  "version": "8.5.0"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationaccountname'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Automation/automationAccounts/modules",
+              "apiVersion": "2022-08-08",
+              "name": "[format('{0}/NetworkingDsc', parameters('automationaccountname'))]",
+              "properties": {
+                "contentLink": {
+                  "uri": "https://www.powershellgallery.com/api/v2/package/NetworkingDsc/9.0.0",
+                  "version": "9.0.0"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', parameters('automationaccountname'))]"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "virtualNetwork",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "subnets": {
+            "value": [
+              {
+                "name": "[variables('adSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('adSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('adNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('bastionSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('bastionSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('bastionNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('dmzSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('dmzSubnetAddressRange')]",
+                  "natGateway": {
+                    "id": "[reference(resourceId('Microsoft.Resources/deployments', 'natgw'), '2022-09-01').outputs.natgwresourceId.value]"
+                  },
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('dmzNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('srvSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('srvSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('srvNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('cliSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('cliSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('cliNSGName'))]"
+                  }
+                }
+              }
+            ]
+          },
+          "virtualNetworkAddressRange": {
+            "value": "[parameters('virtualNetworkAddressRange')]"
+          },
+          "bastionSubnetAddressRange": {
+            "value": "[parameters('bastionSubnetAddressRange')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "13907004942724119652"
+            }
+          },
+          "parameters": {
+            "virtualNetworkName": {
+              "type": "string",
+              "metadata": {
+                "description": "Virtual network name"
+              }
+            },
+            "virtualNetworkAddressRange": {
+              "type": "string",
+              "defaultValue": "10.0.0.0/16",
+              "metadata": {
+                "description": "The address range of the new VNET in CIDR format"
+              }
+            },
+            "subnets": {
+              "type": "array"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "bastionSubnetAddressRange": {
+              "type": "string",
+              "metadata": {
+                "description": "The address prefix to use for the Bastion subnet"
+              }
+            },
+            "publicIpName": {
+              "type": "string",
+              "defaultValue": "pip-bastion",
+              "metadata": {
+                "description": "The name of the Bastion public IP address"
+              }
+            },
+            "bastionHostName": {
+              "type": "string",
+              "defaultValue": "bastion-jumpbox",
+              "metadata": {
+                "description": "The name of the Bastion host"
+              }
+            }
+          },
+          "variables": {
+            "subnetName": "AzureBastionSubnet"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2022-07-01",
+              "name": "[parameters('virtualNetworkName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "virtualNetwork"
+              },
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('virtualNetworkAddressRange')]"
+                  ]
+                },
+                "subnets": "[parameters('subnets')]"
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets",
+              "apiVersion": "2022-01-01",
+              "name": "[format('{0}/{1}', parameters('virtualNetworkName'), variables('subnetName'))]",
+              "properties": {
+                "addressPrefix": "[parameters('bastionSubnetAddressRange')]",
+                "privateEndpointNetworkPolicies": "Disabled",
+                "privateLinkServiceNetworkPolicies": "Disabled"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2022-01-01",
+              "name": "[parameters('publicIpName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "type": "Microsoft.Network/bastionHosts",
+              "apiVersion": "2022-01-01",
+              "name": "[parameters('bastionHostName')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "disableCopyPaste": false,
+                "enableFileCopy": true,
+                "enableIpConnect": true,
+                "enableShareableLink": false,
+                "enableTunneling": true,
+                "scaleUnits": 2,
+                "ipConfigurations": [
+                  {
+                    "name": "IpConf",
+                    "properties": {
+                      "subnet": {
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]"
+                      },
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIpName'))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworkName'), variables('subnetName'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIpName'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "bastionId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/bastionHosts', parameters('bastionHostName'))]"
+            },
+            "VNet": {
+              "type": "object",
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworkName')), '2022-07-01')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'natgw')]",
+        "[resourceId('Microsoft.Resources/deployments', 'NSGs')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "NSGs",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "subnets": {
+            "value": [
+              {
+                "name": "[variables('adSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('adSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('adNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('bastionSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('bastionSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('bastionNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('dmzSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('dmzSubnetAddressRange')]",
+                  "natGateway": {
+                    "id": "[reference(resourceId('Microsoft.Resources/deployments', 'natgw'), '2022-09-01').outputs.natgwresourceId.value]"
+                  },
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('dmzNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('srvSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('srvSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('srvNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('cliSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('cliSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('cliNSGName'))]"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "3599373232993608894"
+            }
+          },
+          "parameters": {
+            "subnets": {
+              "type": "array",
+              "metadata": {
+                "description": "Name of the virtual network for this deployment"
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            }
+          },
+          "variables": {
+            "var_adNSGName": "nsg-int-ad",
+            "var_dmzNSGName": "nsg-dmz-wap",
+            "var_bastionNSGName": "nsg-bastion",
+            "var_cliNSGName": "nsg-int-cli",
+            "adsubnetrange": "[parameters('subnets')[0].properties.addressPrefix]",
+            "bastionSubnetRange": "[parameters('subnets')[1].properties.addressPrefix]",
+            "dmzSubnetRange": "[parameters('subnets')[2].properties.addressPrefix]",
+            "srvSubnetRange": "[parameters('subnets')[3].properties.addressPrefix]",
+            "cliSubnetRange": "[parameters('subnets')[4].properties.addressPrefix]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('var_adNSGName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adNSG"
+              },
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "deny_RDP_from_DMZ",
+                    "properties": {
+                      "description": "deny RDP to AD Servers from DMZ",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3389",
+                      "sourceAddressPrefix": "[variables('dmzSubnetRange')]",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Deny",
+                      "priority": 110,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_bastion_to_AD",
+                    "properties": {
+                      "description": "Allow Bastion to AD Servers",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3389",
+                      "sourceAddressPrefix": "[variables('bastionSubnetRange')]",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 111,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_RDP_to_AD_Servers",
+                    "properties": {
+                      "description": "Allow RDP to AD Servers",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3389",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 120,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_SMTP",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "25",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 121,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_WINS",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "42",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 122,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_Repl",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "135",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 123,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_NetBIOS",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "137",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 124,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_netlogin",
+                    "properties": {
+                      "description": "Allow AD Communication - DFSN, NetBIOS Session, NetLogon",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "139",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 125,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_LDAP",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "389",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 126,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_LDAP_udp",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "389",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 127,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_LDAPS",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "636",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 128,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_LDAP_GC",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3268-3269",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 129,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_KRB",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "88",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 130,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_KRB_udp",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "88",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 131,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_DNS",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "53",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 132,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_DNS_udp",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "53",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 133,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_445",
+                    "properties": {
+                      "description": "Allow AD Communication - SMB, CIFS,SMB2, DFSN, LSARPC, NbtSS, NetLogonR, SamR, SrvSvc",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "445",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 134,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_445_udp",
+                    "properties": {
+                      "description": "Allow AD Communication - SMB, CIFS,SMB2, DFSN, LSARPC, NbtSS, NetLogonR, SamR, SrvSvc",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "445",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 135,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_SOAP",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "9389",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 136,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_DFSR",
+                    "properties": {
+                      "description": "Allow AD Communication - DFSR/Sysvol",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "5722",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 137,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_KRB2",
+                    "properties": {
+                      "description": "Allow AD Communication - Kerberos change/set password",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "464",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 138,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_KRB2_udp",
+                    "properties": {
+                      "description": "Allow AD Communication - Kerberos change/set password",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "464",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 139,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_time",
+                    "properties": {
+                      "description": "Allow AD Communication - Windows Time Protocol",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "123",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 140,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_auth",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "137-138",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 141,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_ephemeral",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "49152-65535",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 142,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_AD_ephemeral_udp",
+                    "properties": {
+                      "description": "Allow AD Communication",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "49152-65535",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 143,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "deny_AD_Other_TCP",
+                    "properties": {
+                      "description": "deny remainder of Communications",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Deny",
+                      "priority": 200,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "deny_AD_Other_UDP",
+                    "properties": {
+                      "description": "deny remainder of Communications",
+                      "protocol": "Udp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Deny",
+                      "priority": 201,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_HTTPS_vNet",
+                    "properties": {
+                      "description": "Allow app proxy communication from DMZ",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "443",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 199,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_WinRM_vNet",
+                    "properties": {
+                      "description": "Allow WinRM sessions within the vNet",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "5985-5986",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationAddressPrefix": "[variables('adsubnetrange')]",
+                      "access": "Allow",
+                      "priority": 198,
+                      "direction": "Inbound"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('var_dmzNSGName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "DMZNSG"
+              },
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "allow_HTTPS_from_Internet",
+                    "properties": {
+                      "description": "Allow communication between Internet-facing LB and WAP",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "443",
+                      "sourceAddressPrefix": "Internet",
+                      "destinationAddressPrefix": "[variables('dmzSubnetRange')]",
+                      "access": "Allow",
+                      "priority": 102,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_RDP_from_VNet",
+                    "properties": {
+                      "description": "Allow communication from internal vNet to DMZ",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3389",
+                      "sourceAddressPrefix": "Internet",
+                      "destinationAddressPrefix": "[variables('dmzSubnetRange')]",
+                      "access": "Allow",
+                      "priority": 103,
+                      "direction": "Inbound"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2020-07-01",
+              "name": "[variables('var_bastionNSGName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "AllowHttpsInBound",
+                    "properties": {
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "Internet",
+                      "destinationPortRange": "443",
+                      "destinationAddressPrefix": "*",
+                      "access": "Allow",
+                      "priority": 100,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "AllowGatewayManagerInBound",
+                    "properties": {
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "GatewayManager",
+                      "destinationPortRange": "443",
+                      "destinationAddressPrefix": "*",
+                      "access": "Allow",
+                      "priority": 110,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "AllowLoadBalancerInBound",
+                    "properties": {
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "AzureLoadBalancer",
+                      "destinationPortRange": "443",
+                      "destinationAddressPrefix": "*",
+                      "access": "Allow",
+                      "priority": 120,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "AllowBastionHostCommunicationInBound",
+                    "properties": {
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationPortRanges": [
+                        "8080",
+                        "5701"
+                      ],
+                      "destinationAddressPrefix": "VirtualNetwork",
+                      "access": "Allow",
+                      "priority": 130,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "DenyAllInBound",
+                    "properties": {
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationPortRange": "*",
+                      "destinationAddressPrefix": "*",
+                      "access": "Deny",
+                      "priority": 1000,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "AllowSshRdpOutBound",
+                    "properties": {
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationPortRanges": [
+                        "22",
+                        "3389"
+                      ],
+                      "destinationAddressPrefix": "VirtualNetwork",
+                      "access": "Allow",
+                      "priority": 100,
+                      "direction": "Outbound"
+                    }
+                  },
+                  {
+                    "name": "AllowAzureCloudCommunicationOutBound",
+                    "properties": {
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationPortRange": "443",
+                      "destinationAddressPrefix": "AzureCloud",
+                      "access": "Allow",
+                      "priority": 110,
+                      "direction": "Outbound"
+                    }
+                  },
+                  {
+                    "name": "AllowBastionHostCommunicationOutBound",
+                    "properties": {
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "VirtualNetwork",
+                      "destinationPortRanges": [
+                        "8080",
+                        "5701"
+                      ],
+                      "destinationAddressPrefix": "VirtualNetwork",
+                      "access": "Allow",
+                      "priority": 120,
+                      "direction": "Outbound"
+                    }
+                  },
+                  {
+                    "name": "AllowGetSessionInformationOutBound",
+                    "properties": {
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "Internet",
+                      "destinationPortRanges": [
+                        "80",
+                        "443"
+                      ],
+                      "access": "Allow",
+                      "priority": 130,
+                      "direction": "Outbound"
+                    }
+                  },
+                  {
+                    "name": "DenyAllOutBound",
+                    "properties": {
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*",
+                      "access": "Deny",
+                      "priority": 1000,
+                      "direction": "Outbound"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('var_cliNSGName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "CLINSG"
+              },
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "allow_to_Internet",
+                    "properties": {
+                      "description": "Allow communication out to Internet",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "[variables('cliSubnetRange')]",
+                      "destinationAddressPrefix": "Internet",
+                      "access": "Allow",
+                      "priority": 102,
+                      "direction": "Outbound"
+                    }
+                  },
+                  {
+                    "name": "allow_all_from_AD",
+                    "properties": {
+                      "description": "Allow communication in from AD",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "[variables('adsubnetrange')]",
+                      "destinationAddressPrefix": "[variables('cliSubnetRange')]",
+                      "access": "Allow",
+                      "priority": 102,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "allow_RDP",
+                    "properties": {
+                      "description": "Allow communication from internet to client subnet",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3389",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "[variables('cliSubnetRange')]",
+                      "access": "Allow",
+                      "priority": 103,
+                      "direction": "Inbound"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'natgw')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "natgw",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "6944653596973950676"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Name of resource group"
+              }
+            },
+            "natgatewayname": {
+              "type": "string",
+              "defaultValue": "nat-gateway",
+              "metadata": {
+                "description": "Name of the NAT gateway"
+              }
+            },
+            "publicipname": {
+              "type": "string",
+              "defaultValue": "nat-pip",
+              "metadata": {
+                "description": "Name of the NAT gateway public IP"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2021-05-01",
+              "name": "[parameters('publicipname')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "idleTimeoutInMinutes": 4
+              }
+            },
+            {
+              "type": "Microsoft.Network/natGateways",
+              "apiVersion": "2021-05-01",
+              "name": "[parameters('natgatewayname')]",
+              "location": "[parameters('location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "idleTimeoutInMinutes": 4,
+                "publicIpAddresses": [
+                  {
+                    "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicipname'))]"
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicipname'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "natgwname": {
+              "type": "string",
+              "value": "[parameters('natgatewayname')]"
+            },
+            "natgwresourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/natGateways', parameters('natgatewayname'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "copy": {
+        "name": "adVMs",
+        "count": "[length(range(0, parameters('AdSrvToDeploy')))]"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('{0}{1}', variables('adVMName'), range(0, parameters('AdSrvToDeploy'))[copyIndex()])]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "adIP": {
+            "value": "[parameters('adIP')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adDomainName": {
+            "value": "[parameters('adDomainName')]"
+          },
+          "adSubnetName": {
+            "value": "[variables('adSubnetName')]"
+          },
+          "adVMName": {
+            "value": "[format('{0}{1}', variables('adVMName'), range(0, parameters('AdSrvToDeploy'))[copyIndex()])]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "NetworkInterfaceName": {
+            "value": "[variables('networkInterfaceName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "vmSize": {
+            "value": "[parameters('vmSize')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "8601155313139950887"
+            }
+          },
+          "parameters": {
+            "adIP": {
+              "type": "string",
+              "defaultValue": "10.0.1.4",
+              "metadata": {
+                "description": "The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail.s"
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin password"
+              }
+            },
+            "adminUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "Admin username"
+              }
+            },
+            "DeployADTemplateUri": {
+              "type": "string",
+              "defaultValue": "https://raw.githubusercontent.com/pthoor/deploy-azure/main/active-directory-with-windows-client/",
+              "metadata": {
+                "description": "Location of scripts"
+              }
+            },
+            "adSubnetName": {
+              "type": "string",
+              "defaultValue": "adSubnet"
+            },
+            "adVMName": {
+              "type": "string",
+              "defaultValue": "AZAD"
+            },
+            "adDomainName": {
+              "type": "string",
+              "defaultValue": "contoso.local"
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "Description": "The region to deploy the resources into"
+              }
+            },
+            "NetworkInterfaceName": {
+              "type": "string",
+              "defaultValue": "NIC",
+              "metadata": {
+                "description": "This is the prefix name of the Network interfaces"
+              }
+            },
+            "virtualNetworkName": {
+              "type": "string",
+              "defaultValue": "vnet"
+            },
+            "vmSize": {
+              "type": "string",
+              "defaultValue": "Standard_B2ms",
+              "metadata": {
+                "description": "This is the allowed list of VM sizes"
+              }
+            }
+          },
+          "variables": {
+            "imageOffer": "WindowsServer",
+            "imagePublisher": "MicrosoftWindowsServer",
+            "imageSKU": "2022-datacenter",
+            "adPubIPName": "ad-pip",
+            "adNicName": "[format('ad-{0}', parameters('NetworkInterfaceName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('adPubIPName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adPubIP"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                  "domainNameLabel": "[toLower(format('{0}{1}', parameters('adVMName'), uniqueString(resourceGroup().id)))]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('adNicName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adNIC"
+              },
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "adipconfig",
+                    "properties": {
+                      "privateIPAllocationMethod": "Static",
+                      "subnet": {
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('adSubnetName'))]"
+                      },
+                      "privateIPAddress": "[parameters('adIP')]",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('adPubIPName'))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('adPubIPName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2022-08-01",
+              "name": "[parameters('adVMName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adVM"
+              },
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[parameters('adVMName')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]",
+                  "windowsConfiguration": {
+                    "provisionVMAgent": true,
+                    "enableAutomaticUpdates": false
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "[variables('imagePublisher')]",
+                    "offer": "[variables('imageOffer')]",
+                    "sku": "[variables('imageSKU')]",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Premium_LRS"
+                    },
+                    "deleteOption": "Delete"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('adNicName'))]"
+                    }
+                  ]
+                }
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', variables('adNicName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2015-06-15",
+              "name": "[format('{0}/DeployAD', parameters('adVMName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.9",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "fileUris": [
+                    "[uri(parameters('DeployADTemplateUri'), 'scripts/SetupADDS.ps1')]"
+                  ],
+                  "commandToExecute": "[format('powershell.exe -ExecutionPolicy Bypass -File SetupADDS.ps1 -domainName {0} -domainAdminUsername {1} -domainAdminPassword {2} -templateBaseUrl {3}', parameters('adDomainName'), parameters('adminUsername'), parameters('adminPassword'), parameters('DeployADTemplateUri'))]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('adVMName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}/{1}', parameters('adVMName'), 'AzurePolicyforWindows')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "publisher": "Microsoft.GuestConfiguration",
+                "type": "ConfigurationforWindows",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "enableAutomaticUpgrade": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('adVMName'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'automationaccount')]",
+        "[resourceId('Microsoft.Resources/deployments', 'NSGs')]",
+        "[resourceId('Microsoft.Resources/deployments', 'virtualNetwork')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "virtualNetworkDNSUpdate",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "subnets": {
+            "value": [
+              {
+                "name": "[variables('adSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('adSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('adNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('bastionSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('bastionSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('bastionNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('dmzSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('dmzSubnetAddressRange')]",
+                  "natGateway": {
+                    "id": "[reference(resourceId('Microsoft.Resources/deployments', 'natgw'), '2022-09-01').outputs.natgwresourceId.value]"
+                  },
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('dmzNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('srvSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('srvSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('srvNSGName'))]"
+                  }
+                }
+              },
+              {
+                "name": "[variables('cliSubnetName')]",
+                "properties": {
+                  "addressprefix": "[parameters('cliSubnetAddressRange')]",
+                  "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('cliNSGName'))]"
+                  }
+                }
+              }
+            ]
+          },
+          "virtualNetworkAddressRange": {
+            "value": "[parameters('virtualNetworkAddressRange')]"
+          },
+          "dnsIP": {
+            "value": "[parameters('adIP')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "2375627205503048943"
+            }
+          },
+          "parameters": {
+            "virtualNetworkName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]"
+            },
+            "virtualNetworkAddressRange": {
+              "type": "string",
+              "defaultValue": "10.0.0.0/16",
+              "metadata": {
+                "description": "The address range of the new VNET in CIDR format"
+              }
+            },
+            "subnets": {
+              "type": "array"
+            },
+            "dnsIP": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2022-07-01",
+              "name": "[parameters('virtualNetworkName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "virtualNetwork"
+              },
+              "properties": {
+                "dhcpOptions": {
+                  "dnsServers": [
+                    "[parameters('dnsIP')]"
+                  ]
+                },
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('virtualNetworkAddressRange')]"
+                  ]
+                },
+                "subnets": "[parameters('subnets')]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "adVMs",
+        "[resourceId('Microsoft.Resources/deployments', 'natgw')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "adcsVM",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "adcsIP": {
+            "value": "[parameters('adcsIP')]"
+          },
+          "adSubnetName": {
+            "value": "[variables('adSubnetName')]"
+          },
+          "adcsVMName": {
+            "value": "[variables('adcsVMName')]"
+          },
+          "adDomainName": {
+            "value": "[parameters('adDomainName')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "NetworkInterfaceName": {
+            "value": "[variables('networkInterfaceName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "vmSize": {
+            "value": "[parameters('vmSize')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "4927848562051488016"
+            }
+          },
+          "parameters": {
+            "adcsIP": {
+              "type": "string",
+              "defaultValue": "10.0.1.6",
+              "metadata": {
+                "description": "The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail.s"
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin password"
+              }
+            },
+            "adminUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "Admin username"
+              }
+            },
+            "DeployADCSTemplateUri": {
+              "type": "string",
+              "defaultValue": "https://raw.githubusercontent.com/pthoor/microsoft-defender-for-identity-in-depth/main/Chapter01/LabDeployment/",
+              "metadata": {
+                "description": "Location of scripts"
+              }
+            },
+            "adSubnetName": {
+              "type": "string",
+              "defaultValue": "adSubnet"
+            },
+            "adcsVMName": {
+              "type": "string",
+              "defaultValue": "AZADCS"
+            },
+            "adDomainName": {
+              "type": "string",
+              "defaultValue": "contoso.local"
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "Description": "The region to deploy the resources into"
+              }
+            },
+            "NetworkInterfaceName": {
+              "type": "string",
+              "defaultValue": "NIC",
+              "metadata": {
+                "description": "This is the prefix name of the Network interfaces"
+              }
+            },
+            "virtualNetworkName": {
+              "type": "string",
+              "defaultValue": "vnet"
+            },
+            "vmSize": {
+              "type": "string",
+              "defaultValue": "Standard_B2ms",
+              "metadata": {
+                "description": "This is the allowed list of VM sizes"
+              }
+            }
+          },
+          "variables": {
+            "imageOffer": "WindowsServer",
+            "imagePublisher": "MicrosoftWindowsServer",
+            "imageSKU": "2022-datacenter",
+            "adcsPubIPName": "adcs-pip",
+            "adcsNicName": "[format('adcs-{0}', parameters('NetworkInterfaceName'))]",
+            "shortDomainName": "[split(parameters('adDomainName'), '.')[0]]",
+            "domainJoinOptions": 3
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('adcsPubIPName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adcsPubIP"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                  "domainNameLabel": "[toLower(format('{0}{1}', parameters('adcsVMName'), uniqueString(resourceGroup().id)))]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('adcsNicName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adNIC"
+              },
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "adcsipconfig",
+                    "properties": {
+                      "privateIPAllocationMethod": "Static",
+                      "subnet": {
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('adSubnetName'))]"
+                      },
+                      "privateIPAddress": "[parameters('adcsIP')]",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('adcsPubIPName'))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('adcsPubIPName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2022-08-01",
+              "name": "[parameters('adcsVMName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adcsVM"
+              },
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[parameters('adcsVMName')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]",
+                  "windowsConfiguration": {
+                    "provisionVMAgent": true,
+                    "enableAutomaticUpdates": false
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "[variables('imagePublisher')]",
+                    "offer": "[variables('imageOffer')]",
+                    "sku": "[variables('imageSKU')]",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Premium_LRS"
+                    },
+                    "deleteOption": "Delete"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('adcsNicName'))]"
+                    }
+                  ]
+                }
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', variables('adcsNicName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}/{1}', parameters('adcsVMName'), 'joindomain')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adcsVMJoin"
+              },
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "JsonADDomainExtension",
+                "typeHandlerVersion": "1.3",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "Name": "[parameters('adDomainName')]",
+                  "OUPath": "",
+                  "User": "[format('{0}\\{1}', variables('shortDomainName'), parameters('adminUsername'))]",
+                  "Restart": "true",
+                  "Options": "[variables('domainJoinOptions')]"
+                },
+                "protectedSettings": {
+                  "Password": "[parameters('adminPassword')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('adcsVMName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}/{1}', parameters('adcsVMName'), 'AzurePolicyforWindows')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "publisher": "Microsoft.GuestConfiguration",
+                "type": "ConfigurationforWindows",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "enableAutomaticUpgrade": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('adcsVMName'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'adfsVMs')]",
+        "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "adfsVMs",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "adfsIP": {
+            "value": "[parameters('adfsIP')]"
+          },
+          "adSubnetName": {
+            "value": "[variables('adSubnetName')]"
+          },
+          "adfsVMName": {
+            "value": "[variables('adfsVMName')]"
+          },
+          "adDomainName": {
+            "value": "[parameters('adDomainName')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "dmzSubnetName": {
+            "value": "[variables('dmzSubnetName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "NetworkInterfaceName": {
+            "value": "[variables('networkInterfaceName')]"
+          },
+          "publicIPAddressDNSName": {
+            "value": "[variables('publicIPAddressDNSName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "vmSize": {
+            "value": "[parameters('vmSize')]"
+          },
+          "wapVMName": {
+            "value": "[variables('wapVMName')]"
+          },
+          "AdfsFarmCount": {
+            "value": "[parameters('AdfsFarmCount')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "6588128277804426981"
+            }
+          },
+          "parameters": {
+            "adSubnetName": {
+              "type": "string",
+              "defaultValue": "adSubnet"
+            },
+            "adfsVMName": {
+              "type": "string",
+              "defaultValue": "AZADFS"
+            },
+            "adfsIP": {
+              "type": "string",
+              "defaultValue": "10.0.1.8",
+              "metadata": {
+                "description": "The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail.s"
+              }
+            },
+            "adDomainName": {
+              "type": "string",
+              "defaultValue": "contoso.local"
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin password"
+              }
+            },
+            "adminUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "Admin username"
+              }
+            },
+            "dmzSubnetName": {
+              "type": "string",
+              "defaultValue": "adSubnet"
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "Description": "The region to deploy the resources into"
+              }
+            },
+            "NetworkInterfaceName": {
+              "type": "string",
+              "defaultValue": "NIC",
+              "metadata": {
+                "description": "This is the prefix name of the Network interfaces"
+              }
+            },
+            "publicIPAddressDNSName": {
+              "type": "string"
+            },
+            "virtualNetworkName": {
+              "type": "string",
+              "defaultValue": "vnet"
+            },
+            "vmSize": {
+              "type": "string",
+              "defaultValue": "Standard_B2ms",
+              "metadata": {
+                "description": "This is the allowed list of VM sizes"
+              }
+            },
+            "wapVMName": {
+              "type": "string",
+              "defaultValue": "AZPROX"
+            },
+            "AdfsFarmCount": {
+              "type": "string",
+              "defaultValue": "1",
+              "allowedValues": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5"
+              ],
+              "metadata": {
+                "description": "An ADFS/WAP server combo will be setup independently this number of times. NOTE: it's unlikely to ever need more than one - additional farm counts are for edge case testing."
+              }
+            }
+          },
+          "variables": {
+            "adfsDeployCount": "[int(parameters('AdfsFarmCount'))]",
+            "shortDomainName": "[split(parameters('adDomainName'), '.')[0]]",
+            "adfsNetworkArr": "[split(parameters('adfsIP'), '.')]",
+            "adfsStartIpNodeAddress": "[int(variables('adfsNetworkArr')[3])]",
+            "adfsNetworkString": "[format('{0}.{1}.{2}.', variables('adfsNetworkArr')[0], variables('adfsNetworkArr')[1], variables('adfsNetworkArr')[2])]",
+            "adfsNICName": "[format('adfs-{0}', parameters('NetworkInterfaceName'))]",
+            "adfsPubIpName": "adfs-pip",
+            "domainJoinOptions": "3",
+            "imageOffer": "WindowsServer",
+            "imagePublisher": "MicrosoftWindowsServer",
+            "imageSKU": "2022-Datacenter",
+            "wapNICName": "[format('wap-{0}', parameters('NetworkInterfaceName'))]",
+            "wapPubIpName": "wap-pip"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "adfsPubIpName_1",
+                "count": "[length(range(0, variables('adfsDeployCount')))]"
+              },
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2022-07-01",
+              "name": "[format('{0}{1}', variables('adfsPubIpName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adfsPubIp"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                  "domainNameLabel": "[toLower(format('{0}{1}', parameters('adfsVMName'), uniqueString(resourceGroup().id)))]"
+                }
+              }
+            },
+            {
+              "copy": {
+                "name": "wapPubIpName_1",
+                "count": "[length(range(0, variables('adfsDeployCount')))]"
+              },
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2022-07-01",
+              "name": "[format('{0}{1}', variables('wapPubIpName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "wapPubIp"
+              },
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                  "domainNameLabel": "[toLower(format('{0}{1}', parameters('publicIPAddressDNSName'), range(0, variables('adfsDeployCount'))[copyIndex()]))]"
+                }
+              }
+            },
+            {
+              "copy": {
+                "name": "adfsNICName_1",
+                "count": "[length(range(0, variables('adfsDeployCount')))]"
+              },
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2022-07-01",
+              "name": "[format('{0}{1}', variables('adfsNICName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adfsNIC"
+              },
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "[format('adfsipconfig{0}', range(0, variables('adfsDeployCount'))[copyIndex()])]",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "privateIPAddress": "[format('{0}{1}', variables('adfsNetworkString'), variables('adfsStartIpNodeAddress'))]",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('adfsPubIpName'), range(0, variables('adfsDeployCount'))[copyIndex()]))]"
+                      },
+                      "subnet": {
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('adSubnetName'))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "adfsPubIpName_1"
+              ]
+            },
+            {
+              "copy": {
+                "name": "wapNICName_1",
+                "count": "[length(range(0, variables('adfsDeployCount')))]"
+              },
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2022-07-01",
+              "name": "[format('{0}{1}', variables('wapNICName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "wapNIC"
+              },
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "[format('wapipconfig{0}', range(0, variables('adfsDeployCount'))[copyIndex()])]",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('wapPubIpName'), range(0, variables('adfsDeployCount'))[copyIndex()]))]"
+                      },
+                      "subnet": {
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('dmzSubnetName'))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "wapPubIpName_1"
+              ]
+            },
+            {
+              "copy": {
+                "name": "adfsVMName_1",
+                "count": "[length(range(0, variables('adfsDeployCount')))]"
+              },
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}{1}', parameters('adfsVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adfsVM"
+              },
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[format('{0}{1}', parameters('adfsVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "[variables('imagePublisher')]",
+                    "offer": "[variables('imageOffer')]",
+                    "sku": "[variables('imageSKU')]",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}{1}', variables('adfsNICName'), range(0, variables('adfsDeployCount'))[copyIndex()]))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "adfsNICName_1"
+              ]
+            },
+            {
+              "copy": {
+                "name": "adfsVMName_1_joindomain",
+                "count": "[length(range(0, variables('adfsDeployCount')))]"
+              },
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}{1}/joindomain', parameters('adfsVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adfsVMJoin"
+              },
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "JsonADDomainExtension",
+                "typeHandlerVersion": "1.3",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "Name": "[parameters('adDomainName')]",
+                  "OUPath": "",
+                  "User": "[format('{0}\\{1}', variables('shortDomainName'), parameters('adminUsername'))]",
+                  "Restart": "true",
+                  "Options": "[variables('domainJoinOptions')]"
+                },
+                "protectedSettings": {
+                  "Password": "[parameters('adminPassword')]"
+                }
+              },
+              "dependsOn": [
+                "adfsVMName_1"
+              ]
+            },
+            {
+              "copy": {
+                "name": "wapVMName_1",
+                "count": "[length(range(0, variables('adfsDeployCount')))]"
+              },
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}{1}', parameters('wapVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "wapVM"
+              },
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[format('{0}{1}', parameters('wapVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "[variables('imagePublisher')]",
+                    "offer": "[variables('imageOffer')]",
+                    "sku": "[variables('imageSKU')]",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}{1}', variables('wapNICName'), range(0, variables('adfsDeployCount'))[copyIndex()]))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "wapNICName_1"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "microsoftSentinel",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "logAnalyticsWorkspaceName": {
+            "value": "[variables('logAnalyticsWorkspaceName')]"
+          },
+          "retentionInDays": {
+            "value": "[parameters('logAnalyticsWorkspaceRetention')]"
+          },
+          "sku": {
+            "value": "PerGB2018"
+          },
+          "dailyQuotaGb": {
+            "value": "[parameters('logAnalyticsWorkspaceDailyQuota')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "17845494356439179344"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "logAnalyticsWorkspaceName": {
+              "type": "string"
+            },
+            "retentionInDays": {
+              "type": "int"
+            },
+            "sku": {
+              "type": "string"
+            },
+            "dailyQuotaGb": {
+              "type": "int"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2021-06-01",
+              "name": "[parameters('logAnalyticsWorkspaceName')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "retentionInDays": "[parameters('retentionInDays')]",
+                "sku": {
+                  "name": "[parameters('sku')]"
+                },
+                "workspaceCapping": {
+                  "dailyQuotaGb": "[parameters('dailyQuotaGb')]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationsManagement/solutions",
+              "apiVersion": "2015-11-01-preview",
+              "name": "[format('SecurityInsights({0})', parameters('logAnalyticsWorkspaceName'))]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]"
+              },
+              "plan": {
+                "name": "[format('SecurityInsights({0})', parameters('logAnalyticsWorkspaceName'))]",
+                "product": "OMSGallery/SecurityInsights",
+                "publisher": "Microsoft",
+                "promotionCode": ""
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "workspaceResourceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName'))]"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
