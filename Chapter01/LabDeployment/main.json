@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "17534939319795033832"
+      "templateHash": "9200630812792004468"
     }
   },
   "parameters": {
@@ -222,7 +222,7 @@
     "cliSubnetName": "[format('snet-client-{0}-001', parameters('region'))]",
     "srvNSGName": "nsg-int-cli",
     "srvSubnetName": "[format('snet-srv-{0}-001', parameters('region'))]",
-    "publicIPAddressDNSName": "[toLower(format('-adfs-{0}', uniqueString(resourceGroup().id)))]",
+    "publicIPAddressDNSName": "[toLower(format('adfs-{0}', uniqueString(resourceGroup().id)))]",
     "wapVMName": "[toUpper(format('{0}', variables('wapVMNameSuffix')))]",
     "DeployADFSFarmTemplate": "InstallADFS.ps1",
     "DeployADFSFarmTemplateUri": "[format('{0}scripts/InstallADFS.ps1', parameters('assetLocation'))]",
