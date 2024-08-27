@@ -1,5 +1,5 @@
 @description('This is the location in which all the linked templates are stored.')
-param assetLocation string = 'https://raw.githubusercontent.com/pthoor/microsoft-defender-for-identity-in-depth/main/Chapter01/LabDeployment/'
+param assetLocation string = 'https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter01/LabDeployment/'
 
 // Key Vault parameters
 @description('Globally unique Vault name must only contain alphanumeric characters and dashes and cannot start with a number.')
@@ -73,7 +73,6 @@ param adDomainName string = 'contoso.local'
 //@description('Enter the password that will be applied to each user account to be created in AD.')
 //@secure()
 //param defaultUserPassword string = 'rP_LZmhEzhQ3KF3'
-//param defaultUserPassword string = newGuid() rP_LZmhEzhQ3KF3
 
 @description('An ADFS/WAP server combo will be setup independently this number of times. NOTE: it\'s unlikely to ever need more than one - additional farm counts are for edge case testing.')
 @allowed([
@@ -136,7 +135,9 @@ param AdSrvToDeploy int = 1
 
 
 param location string = resourceGroup().location
-param region string = 'sdc'
+
+@description('Short name (three letters, e.g. "weu" for West Europe) of the region in which the deployment will take place.')
+param region string = 'weu'
 
 var automationaccountname = 'aa${uniqueString(resourceGroup().id)}'
 var logAnalyticsWorkspaceName = 'la${uniqueString(resourceGroup().id)}'
@@ -144,12 +145,11 @@ var adfsDeployCount = int(AdfsFarmCount)
 var networkInterfaceName = 'nic'
 var addcVMNameSuffix = 'dc'
 var adcsVMNameSuffix = 'cs'
-var adfsVMNameSuffix = 'fs'
+var adfsVMNameSuffix = 'adfs'
 var wapVMNameSuffix = 'wap'
-var companyNamePrefix = split(adDomainName, '.')[0]
-var adfsVMName = toUpper('${companyNamePrefix}${adfsVMNameSuffix}')
-var adVMName = toUpper('${companyNamePrefix}${addcVMNameSuffix}')
-var adcsVMName = toUpper('${companyNamePrefix}${adcsVMNameSuffix}')
+var adfsVMName = toUpper('${adfsVMNameSuffix}')
+var adVMName = toUpper('${addcVMNameSuffix}')
+var adcsVMName = toUpper('${adcsVMNameSuffix}')
 var adNSGName = 'nsg-int-ad'
 var virtualNetworkName = 'vnet-${environmentName}-${region}-001'
 var adSubnetName = 'snet-ad-${region}-001'
@@ -161,15 +161,16 @@ var cliNSGName = 'nsg-int-cli'
 var cliSubnetName = 'snet-client-${region}-001'
 var srvNSGName = 'nsg-int-cli'
 var srvSubnetName = 'snet-srv-${region}-001'
-var publicIPAddressDNSName = toLower('${companyNamePrefix}-adfs-${uniqueString(resourceGroup().id)}')
-var wapVMName = toUpper('${companyNamePrefix}${wapVMNameSuffix}')
+var publicIPAddressDNSName = toLower('-adfs-${uniqueString(resourceGroup().id)}')
+var wapVMName = toUpper('${wapVMNameSuffix}')
 //var adDSCTemplate = '${assetLocation}scripts/adDSCConfiguration.zip'
 var DeployADFSFarmTemplate = 'InstallADFS.ps1'
 var DeployADFSFarmTemplateUri = '${assetLocation}scripts/InstallADFS.ps1'
-var gMSA_ADFS = 'gMSA_ADFS'
+var gMSA_ADFS = 'ADFSGMSA'
 var CopyCertToWAPTemplate = 'CopyCertToWAP.ps1'
 var CopyCertToWAPTemplateUri = '${assetLocation}scripts/CopyCertToWAP.ps1'
 var InstallADCSTemplateUri = '${assetLocation}scripts/InstallADCS.ps1'
+var InitialMDIConfigTemplateUri = '${assetLocation}scripts/InitialMDIConfig.ps1'
 //var adDSCConfigurationFunction = 'adDSCConfiguration.ps1\\DomainController'
 var subnets = [
   {
@@ -362,6 +363,7 @@ resource adfsVMName_1_InstallADFS 'Microsoft.Compute/virtualMachines/extensions@
     }
   }
   dependsOn: [
+    adVMName_InitialMDIConfig
     adfsVMs
   ]
 }]
@@ -506,4 +508,25 @@ resource secret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   properties: {
     value: adminPassword
   }
+}
+
+resource adVMName_InitialMDIConfig 'Microsoft.Compute/virtualMachines/extensions@2015-06-15' = {
+  name: '${adVMName}0/InitialMDIConfig'
+  location: location
+  properties: {
+    publisher: 'Microsoft.Compute'
+    type: 'CustomScriptExtension'
+    typeHandlerVersion: '1.9'
+    autoUpgradeMinorVersion: true
+    settings: {
+      fileUris: [
+        InitialMDIConfigTemplateUri
+      ]
+      commandToExecute: 'powershell.exe -ExecutionPolicy Bypass -File InitialMDIConfig.ps1'
+    }
+  }
+  dependsOn: [
+    adVMs
+    virtualNetworkDNSUpdate
+  ]
 }
