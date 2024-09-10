@@ -114,6 +114,9 @@ param adfsIP string = '10.0.1.8'
 @description('The IP Addresses assigned to the ADCS servers (a, b). Remember the first IP in a subnet is .4 e.g.' )
 param adcsIP string = '10.0.1.6'
 
+@description('The IP Address assigned to the Entra Connect server.')
+param ecIP string = '10.0.1.10'
+
 @description('The address range of the desired subnet for the DMZ.')
 param dmzSubnetAddressRange string = '10.0.2.0/24'
 
@@ -133,7 +136,6 @@ param srvSubnetAddressRange string = '10.0.5.0/26'
 ])
 param AdSrvToDeploy int = 1
 
-
 param location string = resourceGroup().location
 
 @description('Short name (three letters, e.g. "weu" for West Europe) of the region in which the deployment will take place.')
@@ -147,9 +149,11 @@ var addcVMNameSuffix = 'dc'
 var adcsVMNameSuffix = 'cs'
 var adfsVMNameSuffix = 'adfs'
 var wapVMNameSuffix = 'wap'
+var ecVMNameSuffix = 'ec'
 var adfsVMName = toUpper('${adfsVMNameSuffix}')
 var adVMName = toUpper('${addcVMNameSuffix}')
 var adcsVMName = toUpper('${adcsVMNameSuffix}')
+var ecVMName = toUpper('${ecVMNameSuffix}')
 var adNSGName = 'nsg-int-ad'
 var virtualNetworkName = 'vnet-${environmentName}-${region}-001'
 var adSubnetName = 'snet-ad-${region}-001'
@@ -171,6 +175,7 @@ var CopyCertToWAPTemplate = 'CopyCertToWAP.ps1'
 var CopyCertToWAPTemplateUri = '${assetLocation}scripts/CopyCertToWAP.ps1'
 var InstallADCSTemplateUri = '${assetLocation}scripts/InstallADCS.ps1'
 var InitialMDIConfigTemplateUri = '${assetLocation}scripts/InitialMDIConfig.ps1'
+var InstallEntraConnectTemplateUri = '${assetLocation}scripts/InstallEntraConnect.ps1'
 //var adDSCConfigurationFunction = 'adDSCConfiguration.ps1\\DomainController'
 var subnets = [
   {
@@ -344,6 +349,26 @@ module adfsVMs 'modules/compute/vm-adfs.bicep' = {
   ]
 }
 
+module ecVM 'modules/compute/vm-entraconnect.bicep' = {
+  name: 'ecVMs'
+  params: {
+    ecVMName: ecVMName
+    ecIP: ecIP
+    adSubnetName: adSubnetName
+    adDomainName: adDomainName
+    adminPassword: adminPassword
+    adminUsername: adminUsername
+    NetworkInterfaceName: networkInterfaceName
+    virtualNetworkName: virtualNetworkName
+    location: location
+    vmSize: vmSize
+  }
+  dependsOn: [
+    virtualNetworkDNSUpdate
+    adVMs
+  ]
+}
+
 resource adfsVMName_1_InstallADFS 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = [for i in range(0, adfsDeployCount): {
   name: '${adfsVMName}${i}/InstallADFS'
   location: location
@@ -359,7 +384,7 @@ resource adfsVMName_1_InstallADFS 'Microsoft.Compute/virtualMachines/extensions@
       fileUris: [
         DeployADFSFarmTemplateUri
       ]
-      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${DeployADFSFarmTemplate} -Acct ${adminUsername} -PW ${adminPassword} -WapFqdn ${WAPPubIpDnsFQDN} -gMSA_ADFS ${gMSA_ADFS}'
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${DeployADFSFarmTemplate} -gMSA_ADFS ${gMSA_ADFS} -IP_ADFS ${adfsIP}'
     }
   }
   dependsOn: [
@@ -528,5 +553,26 @@ resource adVMName_InitialMDIConfig 'Microsoft.Compute/virtualMachines/extensions
   dependsOn: [
     adVMs
     virtualNetworkDNSUpdate
+  ]
+}
+
+resource ecVMName_InstallEntraConnect 'Microsoft.Compute/virtualMachines/extensions@2015-06-15' = {
+  name: '${ecVMName}/InstallEntraConnect'
+  location: location
+  properties: {
+    publisher: 'Microsoft.Compute'
+    type: 'CustomScriptExtension'
+    typeHandlerVersion: '1.9'
+    autoUpgradeMinorVersion: true
+    settings: {
+      fileUris: [
+        InstallEntraConnectTemplateUri
+      ]
+      commandToExecute: 'powershell -ExecutionPolicy Bypass -File InstallEntraConnect.ps1'
+    }
+  }
+  dependsOn: [
+    ecVM
+    adVMName_InitialMDIConfig
   ]
 }

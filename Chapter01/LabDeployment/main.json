@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.29.47.4906",
-      "templateHash": "9200630812792004468"
+      "templateHash": "16226541331700126031"
     }
   },
   "parameters": {
@@ -147,6 +147,13 @@
         "description": "The IP Addresses assigned to the ADCS servers (a, b). Remember the first IP in a subnet is .4 e.g."
       }
     },
+    "ecIP": {
+      "type": "string",
+      "defaultValue": "10.0.1.10",
+      "metadata": {
+        "description": "The IP Address assigned to the Entra Connect server."
+      }
+    },
     "dmzSubnetAddressRange": {
       "type": "string",
       "defaultValue": "10.0.2.0/24",
@@ -208,9 +215,11 @@
     "adcsVMNameSuffix": "cs",
     "adfsVMNameSuffix": "adfs",
     "wapVMNameSuffix": "wap",
+    "ecVMNameSuffix": "ec",
     "adfsVMName": "[toUpper(format('{0}', variables('adfsVMNameSuffix')))]",
     "adVMName": "[toUpper(format('{0}', variables('addcVMNameSuffix')))]",
     "adcsVMName": "[toUpper(format('{0}', variables('adcsVMNameSuffix')))]",
+    "ecVMName": "[toUpper(format('{0}', variables('ecVMNameSuffix')))]",
     "adNSGName": "nsg-int-ad",
     "virtualNetworkName": "[format('vnet-{0}-{1}-001', parameters('environmentName'), parameters('region'))]",
     "adSubnetName": "[format('snet-ad-{0}-001', parameters('region'))]",
@@ -231,6 +240,7 @@
     "CopyCertToWAPTemplateUri": "[format('{0}scripts/CopyCertToWAP.ps1', parameters('assetLocation'))]",
     "InstallADCSTemplateUri": "[format('{0}scripts/InstallADCS.ps1', parameters('assetLocation'))]",
     "InitialMDIConfigTemplateUri": "[format('{0}scripts/InitialMDIConfig.ps1', parameters('assetLocation'))]",
+    "InstallEntraConnectTemplateUri": "[format('{0}scripts/InstallEntraConnect.ps1', parameters('assetLocation'))]",
     "adfsDSCTemplate": "[format('{0}scripts/adfsDSC.zip', parameters('assetLocation'))]",
     "adfsDSCConfigurationFunction": "adfsDSCConfiguration.ps1\\Main",
     "wapDSCConfigurationFunction": "wapDSCConfiguration.ps1\\Main",
@@ -258,7 +268,7 @@
           "fileUris": [
             "[variables('DeployADFSFarmTemplateUri')]"
           ],
-          "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -File {0} -Acct {1} -PW {2} -WapFqdn {3} -gMSA_ADFS {4}', variables('DeployADFSFarmTemplate'), parameters('adminUsername'), parameters('adminPassword'), variables('WAPPubIpDnsFQDN'), variables('gMSA_ADFS'))]"
+          "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -File {0} -gMSA_ADFS {1} -IP_ADFS {2}', variables('DeployADFSFarmTemplate'), variables('gMSA_ADFS'), parameters('adfsIP'))]"
         }
       },
       "dependsOn": [
@@ -424,6 +434,28 @@
       "dependsOn": [
         "adVMs",
         "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2015-06-15",
+      "name": "[format('{0}/InstallEntraConnect', variables('ecVMName'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[variables('InstallEntraConnectTemplateUri')]"
+          ],
+          "commandToExecute": "powershell -ExecutionPolicy Bypass -File InstallEntraConnect.ps1"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', split(format('{0}0/InitialMDIConfig', variables('adVMName')), '/')[0], split(format('{0}0/InitialMDIConfig', variables('adVMName')), '/')[1])]",
+        "[resourceId('Microsoft.Resources/deployments', 'ecVMs')]"
       ]
     },
     {
@@ -2512,7 +2544,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.29.47.4906",
-              "templateHash": "6588128277804426981"
+              "templateHash": "10298290362024350924"
             }
           },
           "parameters": {
@@ -2671,7 +2703,7 @@
                   {
                     "name": "[format('adfsipconfig{0}', range(0, variables('adfsDeployCount'))[copyIndex()])]",
                     "properties": {
-                      "privateIPAllocationMethod": "Dynamic",
+                      "privateIPAllocationMethod": "Static",
                       "privateIPAddress": "[format('{0}{1}', variables('adfsNetworkString'), variables('adfsStartIpNodeAddress'))]",
                       "publicIPAddress": {
                         "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}{1}', variables('adfsPubIpName'), range(0, variables('adfsDeployCount'))[copyIndex()]))]"
@@ -2845,6 +2877,278 @@
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "ecVMs",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "ecVMName": {
+            "value": "[variables('ecVMName')]"
+          },
+          "ecIP": {
+            "value": "[parameters('ecIP')]"
+          },
+          "adSubnetName": {
+            "value": "[variables('adSubnetName')]"
+          },
+          "adDomainName": {
+            "value": "[parameters('adDomainName')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "NetworkInterfaceName": {
+            "value": "[variables('networkInterfaceName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "vmSize": {
+            "value": "[parameters('vmSize')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.29.47.4906",
+              "templateHash": "1928906070015945836"
+            }
+          },
+          "parameters": {
+            "ecIP": {
+              "type": "string",
+              "defaultValue": "10.0.1.10",
+              "metadata": {
+                "description": "The IP Addresses assigned to the domain controllers (a, b). Remember the first IP in a subnet is .4 e.g. 10.0.0.0/16 reserves 10.0.0.0-3. Specify one IP per server - must match numberofVMInstances or deployment will fail.s"
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "Admin password"
+              }
+            },
+            "adminUsername": {
+              "type": "string",
+              "metadata": {
+                "description": "Admin username"
+              }
+            },
+            "DeployADTemplateUri": {
+              "type": "string",
+              "defaultValue": "https://raw.githubusercontent.com/pthoor/deploy-azure/main/active-directory-with-windows-client/",
+              "metadata": {
+                "description": "Location of scripts"
+              }
+            },
+            "adSubnetName": {
+              "type": "string",
+              "defaultValue": "adSubnet"
+            },
+            "ecVMName": {
+              "type": "string"
+            },
+            "adDomainName": {
+              "type": "string",
+              "defaultValue": "contoso.local"
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "Description": "The region to deploy the resources into"
+              }
+            },
+            "NetworkInterfaceName": {
+              "type": "string",
+              "defaultValue": "NIC",
+              "metadata": {
+                "description": "This is the prefix name of the Network interfaces"
+              }
+            },
+            "virtualNetworkName": {
+              "type": "string",
+              "defaultValue": "vnet"
+            },
+            "vmSize": {
+              "type": "string",
+              "defaultValue": "Standard_B2ms",
+              "metadata": {
+                "description": "This is the allowed list of VM sizes"
+              }
+            }
+          },
+          "variables": {
+            "imageOffer": "WindowsServer",
+            "imagePublisher": "MicrosoftWindowsServer",
+            "imageSKU": "2022-datacenter",
+            "ecPubIPName": "ec-pip",
+            "ecNicName": "[format('ec-{0}', parameters('NetworkInterfaceName'))]",
+            "shortDomainName": "[split(parameters('adDomainName'), '.')[0]]",
+            "domainJoinOptions": 3
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('ecPubIPName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "ecPubIP"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Dynamic",
+                "dnsSettings": {
+                  "domainNameLabel": "[toLower(format('{0}{1}', parameters('ecVMName'), uniqueString(resourceGroup().id)))]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2022-07-01",
+              "name": "[variables('ecNicName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "ecNIC"
+              },
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ecipconfig",
+                    "properties": {
+                      "privateIPAllocationMethod": "Static",
+                      "subnet": {
+                        "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('adSubnetName'))]"
+                      },
+                      "privateIPAddress": "[parameters('ecIP')]",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('ecPubIPName'))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('ecPubIPName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2022-08-01",
+              "name": "[parameters('ecVMName')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "adVM"
+              },
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[parameters('ecVMName')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]",
+                  "windowsConfiguration": {
+                    "provisionVMAgent": true,
+                    "enableAutomaticUpdates": false
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "[variables('imagePublisher')]",
+                    "offer": "[variables('imageOffer')]",
+                    "sku": "[variables('imageSKU')]",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Premium_LRS"
+                    },
+                    "deleteOption": "Delete"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('ecNicName'))]"
+                    }
+                  ]
+                }
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', variables('ecNicName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}/{1}', parameters('ecVMName'), 'joindomain')]",
+              "location": "[parameters('location')]",
+              "tags": {
+                "displayName": "ecVMJoin"
+              },
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "JsonADDomainExtension",
+                "typeHandlerVersion": "1.3",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "Name": "[parameters('adDomainName')]",
+                  "OUPath": "",
+                  "User": "[format('{0}\\{1}', variables('shortDomainName'), parameters('adminUsername'))]",
+                  "Restart": "true",
+                  "Options": "[variables('domainJoinOptions')]"
+                },
+                "protectedSettings": {
+                  "Password": "[parameters('adminPassword')]"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('ecVMName'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2022-08-01",
+              "name": "[format('{0}/{1}', parameters('ecVMName'), 'AzurePolicyforWindows')]",
+              "location": "[parameters('location')]",
+              "properties": {
+                "publisher": "Microsoft.GuestConfiguration",
+                "type": "ConfigurationforWindows",
+                "typeHandlerVersion": "1.0",
+                "autoUpgradeMinorVersion": true,
+                "enableAutomaticUpgrade": true
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Compute/virtualMachines', parameters('ecVMName'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "adVMs",
         "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
       ]
     },
