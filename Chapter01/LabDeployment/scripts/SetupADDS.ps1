@@ -22,6 +22,13 @@ Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
 
 $netbiosname = $domainName.Split('.')[0].ToUpper()
 
+# Create a scheduled task to run after reboot
+$taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-File $templateBaseUrl\scripts\SetupADDS.ps1 -domainName $domainName -domainAdminUsername $domainAdminUsername -domainAdminPassword $domainAdminPassword -templateBaseUrl $templateBaseUrl"
+$taskTrigger = New-ScheduledTaskTrigger -AtStartup
+$taskSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+Register-ScheduledTask -Action $taskAction -Trigger $taskTrigger -TaskName "SetupADDS" -Description "Setup ADDS" -Settings $taskSettings
+
+
 # Create Active Directory Forest
 Install-ADDSForest `
     -DomainName "$domainName" `

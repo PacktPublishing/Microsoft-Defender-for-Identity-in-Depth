@@ -1,75 +1,44 @@
 param (
-    [Parameter(Mandatory)]
-    [string]$Acct,
-
-    [Parameter(Mandatory)]
-    [string]$PW,
-
 	[Parameter(Mandatory)]
-	[string]$WapFqdn
+	[string]$gMSA_ADFS,
 
-	[Parameter(Mandatory)]
-	[string]$gMSA_ADFS
+    [Parameter(Mandatory)]
+    [string]$IP_ADFS
 )
 
-#Forcing TLS 1.2 on calls from this script
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 
+# Install modules
+Install-WindowsFeature ADFS-Federation -IncludeManagementTools
+Install-WindowsFeature -Name RSAT-AD-Tools
+Install-WindowsFeature -Name GPMC
 
+# Configure ADFS Farm
+Import-Module ADFS
 $wmiDomain = Get-WmiObject Win32_NTDomain -Filter "DnsForestName = '$( (Get-WmiObject Win32_ComputerSystem).Domain)'"
-$DCName = $wmiDomain.DomainControllerName
-$ComputerName = $wmiDomain.PSComputerName
-$Subject = $WapFqdn -f $instance
+$DomainName = $wmiDomain.DomainName
+$DnsForestName = $wmiDomain.DnsForestName
+$DomainControllerName = $wmiDomain.DomainControllerName -replace '\\',''
 
-$DomainName=$wmiDomain.DomainName
-$DomainNetbiosName = $DomainName.split('.')[0]
-$SecPw = ConvertTo-SecureString $PW -AsPlainText -Force
-[System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Acct)", $SecPW)
+# Create a self-signed certificate for AD FS
+$cert = New-SelfSignedCertificate -DnsName "adfs.$($DnsForestName)" -CertStoreLocation cert:\LocalMachine\My
+$pwd = ConvertTo-SecureString -String "yourPassword" -Force -AsPlainText
+Export-PfxCertificate -cert "cert:\LocalMachine\My\$($cert.Thumbprint)" -FilePath "C:\Temp\adfsCert.pfx" -Password $pwd
+Import-PfxCertificate -FilePath "C:\Temp\adfsCert.pfx" -CertStoreLocation cert:\LocalMachine\My -Password $pwd
 
-$identity = [Security.Principal.WindowsIdentity]::GetCurrent()  
-$principal = new-object Security.Principal.WindowsPrincipal $identity 
-$elevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)  
+# Install AD FS
+Install-ADServiceAccount -Identity $gMSA_ADFS
+Install-AdfsFarm `
+	-CertificateThumbprint $cert.thumbprint `
+	-FederationServiceDisplayName "MDI AD FS Lab" `
+    -FederationServiceName "adfs.$($DnsForestName)" `
+	-GroupServiceAccountIdentifier "$($domainName)\$($gMSA_ADFS)$" `
+	-OverwriteConfiguration
 
-if (-not $elevated) {
-    $a = $PSBoundParameters
-    $cl = "-Acct $($a.Acct) -PW $($a.PW)"
-    $arglist = (@("-file", (join-path $psscriptroot $myinvocation.mycommand)) + $args + $cl)
-    Write-host "Not elevated, restarting as admin..."
-    Start-Process cmd.exe -Credential $DomainCreds -NoNewWindow -ArgumentList "/c powershell.exe $arglist"
-} else {
-    Write-Host "Elevated, continuing..." -Verbose
+# Set the IdP initiated sign-on page
+Set-AdfsProperties -EnableIdPInitiatedSignonPage $true 
 
-    #Configure ADFS Farm
-    Import-Module ADFS
-    $wmiDomain = Get-WmiObject Win32_NTDomain -Filter "DnsForestName = '$( (Get-WmiObject Win32_ComputerSystem).Domain)'"
-    $DCName = $wmiDomain.DomainControllerName
-    $ComputerName = $wmiDomain.PSComputerName
-    $DomainName=$wmiDomain.DomainName
-    $DomainNetbiosName = $DomainName.split('.')[0]
-    $SecPw = ConvertTo-SecureString $PW -AsPlainText -Force
+# DNS
+Install-WindowsFeature -Name DNS -IncludeManagementTools
+Import-Module DNSServer
+Add-DnsServerResourceRecordA -Name "adfs" -ZoneName $DnsForestName -IPv4Address $IP_ADFS -ComputerName $DomainControllerName
 
-    [System.Management.Automation.PSCredential]$DomainCreds = New-Object System.Management.Automation.PSCredential ("${DomainNetbiosName}\$($Acct)", $SecPW)
-
-    $Index = $ComputerName.Substring($ComputerName.Length-1,1)
-	$Subject = $WapFqdn -f $Index
-	Write-Host "Subject: $Subject"
-
-    #get thumbprint of certificate
-    $cert = Get-ChildItem Cert:\LocalMachine\My | where {$_.Subject -eq "CN=$Subject"}
-	try {
-	    Get-ADfsProperties -ErrorAction Stop
-        Write-Host "Farm already configured" -Verbose
-	}
-	catch {
-		Install-AdfsFarm `
-			-CertificateThumbprint $cert.thumbprint `
-			-FederationServiceName $Subject `
-			-ServiceAccountCredential (Get-ADServiceAccount $gMSA_ADFS) `
-			-OverwriteConfiguration
-
-        Write-Host "Farm configured" -Verbose
-	}
-
-	Set-AdfsProperties -EnableIdPInitiatedSignonPage $true 
- 
-	Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
-}
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force

@@ -95,7 +95,7 @@ resource adfsNICName_1 'Microsoft.Network/networkInterfaces@2022-07-01' = [for i
       {
         name: 'adfsipconfig${i}'
         properties: {
-          privateIPAllocationMethod: 'Dynamic'
+          privateIPAllocationMethod: 'Static'
           privateIPAddress: '${adfsNetworkString}${adfsStartIpNodeAddress}'
           publicIPAddress: {
             id: resourceId('Microsoft.Network/publicIPAddresses', '${adfsPubIpName}${i}')

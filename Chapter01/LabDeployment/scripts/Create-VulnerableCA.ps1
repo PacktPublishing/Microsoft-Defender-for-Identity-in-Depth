@@ -15,6 +15,10 @@ $templates = @(
 )
 
 # Install and import the required modules
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process -Force
+Install-WindowsFeature -Name RSAT-AD-Tools
+Install-WindowsFeature -Name GPMC
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
 $requiredModules = @('ADCSTemplate', 'PSPKI')
 foreach ($module in $requiredModules) {
     if (-not (Get-Module -Name $module -ErrorAction SilentlyContinue)) {
