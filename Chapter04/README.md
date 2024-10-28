@@ -1,182 +1,371 @@
-# Chapter 4 - Extending MDI capabilities through APIs
+# Chapter 4: Integrating MDI with AD FS, AD CS, and Entra Connect
 
-## Getting started with Microsoft Graph API
-### Creating App Registration Using Bicep
+# Table of Contents
 
-1. Save the files [main.bicep](Chapter04/main.bicep) and [bicepconfig.json](Chapter04/bicepconfig.json) to your local computer.
+- [Integrating MDI with AD FS](#integrating-mdi-with-ad-fs)
+    - [AD FS Advanced Auditing / Verbose settings](#ad-fs-advanced-auditing--verbose-settings)
+    - [Configuring SACL on AD FS container](#configuring-sacl-on-ad-fs-container)
+    - [AD FS database permissions](#ad-fs-database-permissions)
+    - [Validate MDI sensor service](#validate-mdi-sensor-service)
+    - [Enable AD FS IdP-Initiated Sign-On Page](#enable-ad-fs-idp-initiated-sign-on-page)
+    - [Verify AD FS log ingestion to Defender XDR](#verify-ad-fs-log-ingestion-to-defender-xdr)
+- [Integrating MDI with AD CS](#integrating-mdi-with-ad-cs)
+    - [Implementing CA Auditing via PowerShell](#implementing-ca-auditing-via-powershell)
+    - [Validating the AD CS integration](#validating-the-ad-cs-integration)
+- [Integrating MDI with Entra Connect](#integrating-mdi-with-entra-connect)
+    - [Verify Entra Connect log ingestion to Defender XDR](#verify-entra-connect-log-ingestion-to-defender-xdr)
 
-2. Start Windows PowerShell if you don’t have PowerShell 7. If you already have PowerShell 7 installed, skip to the next step. To install PowerShell 7, type the following command: 
 
-```powershell
-winget install --id Microsoft.Powershell --source winget
-```
+## Integrating MDI with AD FS
+### AD FS Advanced Auditing / Verbose settings
 
-#### Using Azure CLI 
+On your AD FS server; 
+1. Start Windows PowerShell 
+2. Ensure that the `DefenderForIdentity` module is installed on your 
+server. For detailed installation instructions, see Chapter 2. 
+- On servers that are not domain controllers, ensure the following modules 
+are installed, as they are required by the `DefenderForIdentity` 
+module: 
+    - `ActiveDirectory` (RSAT-AD-Tools)
+        ```powershell
+        Install-WindowsFeature –Name RSAT-AD-Tools
+        ```
+    - `GroupPolicy` (GPMC)
+        ```powershell
+        Install-WindowsFeature –Name GPMC
+        ```
 
-To use Azure CLI, follow the below steps, if you want to use Azure PowerShell for deployment – refer to the following section. 
-
-1. Open the newly installed PowerShell 7 from the start menu and then type below to install Azure CLI: 
-
-```powershell
-winget install -e --id Microsoft.AzureCLI 
-```
-
-2. If not logged in, run the following command to login to Azure and follow the sign in prompt
-```powershell
-az login
-```
-
-3. Choose the subscription that you want to create a new resource group to be able to deploy the Bicep file.
-
-4. Change the path in the console to the location where you have the `main.bicep` file.
-
-5. Type the following to create a new resource group (choose name of your resource group and Azure location, like for example: `westeurope` or `eastus`)
-
-```powershell
-az group create --name rg-GraphAPI-test-001 --location westeurope
-```
-
-6. Run the below query for deployment:
-
-```powershell
-$AppRegDeploy = az deployment group create --resource-group rg-GraphAPI-test-001 --template-file .\main.bicep
-```
-
-7. Now in the variable `$AppRegDeploy` we have some JSON output that we need to handle to gather our newly created secret. Type this to convert the JSON result to a PowerShell object: 
+3. Type the commands below to configure the required audit settings
 
 ```powershell
-$AppRegDeployObj = $AppRegDeploy | ConvertFrom-Json 
+Import-Module –Name DefenderForIdentity
+Set-AdfsProperties -AuditLevel Verbose
 ```
 
-8. We can now extract the secret value which is located at `properties` > `outputs` > `secretValue` > `value` 
+### Configuring SACL on AD FS container
+
+Follow the below steps to configure the SACL for advanced auditing settings: 
+1. On one of your domain controllers, start Windows PowerShell 
+2. Run the following command for configuring the AD FS auditing settings:
+
+```powershell 
+Set-MDIConfiguration -Mode Domain -Configuration AdfsAuditing 
+```
+
+3. Verify the setting with the following command; you should now get an output 
+that says `True`
 
 ```powershell
-$secretValue = $AppRegDeployObj.properties.outputs.secretValue.value 
+Test-MDIConfiguration -Mode Domain -Configuration AdfsAuditing 
 ```
 
-9. With a new variable called `$secretValue` we will now find our secret: 
+### AD FS database permissions
+
+- PowerShell script to find the database name
 
 ```powershell
-$secretValue
+$adfs = Get-WmiObject -Namespace "root/ADFS" -Class "SecurityTokenService"
+$connectionString = $adfs.ConfigurationDatabaseConnectionString
+$components = $connectionString.Split(';')
+$initialCatalogComponent = $components | Where-Object { $_.StartsWith("Initial Catalog") }
+$initialCatalog = $initialCatalogComponent.Split('=')[1].Trim()
+Write-Output "Connection String: $connectionString"
+Write-Output "Initial Catalog: $initialCatalog"
 ```
 
-#### Using Azure PowerShell 
-
-To use Azure PowerShell module, follow below steps: 
-
-1. Before we proceed, we need to install Bicep CLI from winget. Type the following: 
+- Configure the database permissions
 
 ```powershell
-winget install -e --id Microsoft.Bicep 
+$ConnectionString = 'server=\\.\pipe\MICROSOFT##WID\tsql\query;database=OurDatabaseName;trusted_connection=true;'
+$SQLConnection= New-Object System.Data.SQLClient.SQLConnection($ConnectionString)
+$SQLConnection.Open()
+$SQLCommand = $SQLConnection.CreateCommand()
+$SQLCommand.CommandText = @"
+USE [master];  
+CREATE LOGIN [CONTOSO\MDIGMSA$] FROM WINDOWS WITH
+DEFAULT_DATABASE=[master];
+USE [OurDatabaseName];
+CREATE USER [CONTOSO\MDIGMSA$] FOR LOGIN
+[CONTOSO\MDIGMSA$];
+ALTER ROLE [db_datareader] ADD MEMBER [CONTOSO\MDIGMSA$];
+GRANT CONNECT TO [CONTOSO\MDIGMSA$];
+GRANT SELECT TO [CONTOSO\MDIGMSA$];
+"@
+$SqlDataReader = $SQLCommand.ExecuteReader()
+$SQLConnection.Close()
 ```
 
-2. If not logged in, run below to login to Azure and follow the sign in prompt: 
+- Validate MDI sensor service
 
 ```powershell
-Login-AzAccount 
+Get-Service AATPSensor | Select-Object Status
 ```
 
-3. Choose the subscription that you want to create a new resource group to be able to deploy the Bicep file.
-
-4. Change the path in the console to the location where you have the `main.bicep` file. 
-
-5. Type the following to create a new resource group (choose name of your resource group and Azure location, like for example: `westeurope` or `eastus`) 
+- Enable AD FS IdP-Initiated Sign-On Page
 
 ```powershell
-New-AzResourceGroup -Name rg-GraphAPI-test-001 -Location eastus
+Get-AdfsProperties | Select-Object –ExpandProperty EnableIdPInitiatedSignonPage
+Set-AdfsProperties –EnableIdPInitiatedSignonPage $true
 ```
 
-6. Run the following for deployment: 
+- Verify AD FS log ingestion to Defender XDR
+
+```kql
+IdentityLogonEvents
+| where Protocol =~ 'Adfs'
+```
+
+## Integrating MDI with AD CS
+### Implementing CA Auditing via PowerShell 
+
+1. Modify the CA audit settings
 
 ```powershell
-$AppRegDeploy = New-AzResourceGroupDeployment -ResourceGroupName rg-GraphAPI-test-001 -TemplateFile .\main.bicep
+certutil -setreg CA\AuditFilter 127
 ```
 
-7. Now in the variable `$AppRegDeploy` we have the output from the `New-AzResourceGroupDeployment`, to get the value of the secret we simply type the following:
+2. To ensure the new settings take effect immediately, cycle the Certificate Services 
 
 ```powershell
-$AppRegDeploy.Outputs.secretValue.Value
+Stop-Service -Name certsvc
+Start-Service -Name certsvc
 ```
 
-8. With a new variable called `$secretValue` we will now find our secret: 
+### Validating the AD CS integration
+
+1. Validate MDI sensor service
 
 ```powershell
-$secretValue
+Get-Service AATPSensor | Select-Object Status
 ```
 
-## Creating Enterprise Application
-
-
-## Getting the Access Token
-### Using PowerShell
-
-#### Invoke-RestMethod
-Interaction with the Microsoft Graph API. The example fetches user profile information by making a `GET` request. Here’s how you can structure your request: 
+2. Test certificate request with PowerShell
 
 ```powershell
-$uri = "https://graph.microsoft.com/v1.0/me"
-$headers = @{
-    "Authorization" = "Bearer $accessToken"
-}
-
-$response = Invoke-RestMethod -Uri $uri -Headers $headers
-$response 
+$certRequest = @"
+[Version]
+Signature = "$Windows NT$"
+[NewRequest]
+Subject = "CN=TestUser, OU=YourOU, O=YourOrg, C=US"
+KeyLength = 2048
+Exportable = TRUE
+MachineKeySet = FALSE
+SMIME = FALSE
+PrivateKeyArchive = FALSE
+UserProtected = FALSE
+UseExistingKeySet = FALSE
+ProviderName = "Microsoft RSA SChannel
+Cryptographic Provider"
+ProviderType = 12
+RequestType = PKCS10
+KeyUsage = 0xa0
+"@
 ```
 
-
-#### Invoke-WebRequest
-For scenarios requiring detailed HTTP response data, `Invoke-WebRequest` is particularly useful. Here’s how to set up and execute a request that provides comprehensive response details: 
+3. Save the certificate request data to a file
 
 ```powershell
-$uri = "https://graph.microsoft.com/v1.0/me"
-$headers = @{
-    "Authorization" = "Bearer $accessToken"
-}
-
-$response = Invoke-WebRequest -Uri $uri -Headers $headers
-$response
+$requestFile = "C:\Temp\ESC1_certRequest.inf"
+$certRequest | Out-File -FilePath $requestFile
 ```
 
-Additionally, you can parse the JSON content from the response body to manipulate it further: 
+4. Generate the certificate request
 
 ```powershell
-$data = $response.Content | ConvertFrom-Json
-$data
+$certReqFileOutput = "C:\Temp\ESC1_certReq.req"
+certreq -new $requestFile $certReqFileOutput
 ```
 
-## Making API Calls
+5. Verify AD CS log ingestion to Defender XDR
+
+```kql
+IdentityDirectoryEvents
+| where Protocol =~ "Adcs"
+```
+
+## Integrating MDI with Entra Connect
+
+- Verify Entra Connect log ingestion to Defender XDR
+
+```kql
+IdentityDirectoryEvents 
+| where Application =~ "Entra Connect"
+```
+
+
+## Integrating MDI with AD FS
+### AD FS Advanced Auditing / Verbose settings
+
+On your AD FS server; 
+1. Start Windows PowerShell 
+2. Ensure that the `DefenderForIdentity` module is installed on your 
+server. For detailed installation instructions, see Chapter 2. 
+- On servers that are not domain controllers, ensure the following modules 
+are installed, as they are required by the `DefenderForIdentity` 
+module: 
+  - `ActiveDirectory` (RSAT-AD-Tools)
+    ```powershell
+    Install-WindowsFeature –Name RSAT-AD-Tools
+    ```
+  - `GroupPolicy` (GPMC)
+    ```powershell
+    Install-WindowsFeature –Name GPMC
+    ```
+
+3. Type the commands below to configure the required audit settings
 
 ```powershell
-$tenantId = "<your_tenant_id>"
-$clientId = "<your_client_id>"
-$clientSecret = "<your_client_secret>"
-
-$body = @{
-    grant_type    = "client_credentials"
-    scope         = "https://graph.microsoft.com/.default"
-    client_id     = $clientId
-    client_secret = $clientSecret
-}
-
-$tokenResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" -ContentType "application/x-www-form-urlencoded" -Body $body
-
-$accessToken = $tokenResponse.access_token
-
-$headers = @{
-    Authorization = "Bearer $accessToken"
-} 
+Import-Module –Name DefenderForIdentity
+Set-AdfsProperties -AuditLevel Verbose
 ```
 
-Next, we’ll query healthIssue API to be able to gather open issues with our sensors using the following: 
+### Configuring SACL on AD FS container
+
+Follow the below steps to configure the SACL for advanced auditing settings: 
+1. On one of your domain controllers, start Windows PowerShell 
+2. Run the following command for configuring the AD FS auditing settings:
+
+```powershell 
+Set-MDIConfiguration -Mode Domain -Configuration AdfsAuditing 
+```
+
+3. Verify the setting with the following command; you should now get an output 
+that says `True`
 
 ```powershell
-$uri = "https://graph.microsoft.com/beta/security/identities/healthIssues"
-
-$response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+Test-MDIConfiguration -Mode Domain -Configuration AdfsAuditing 
 ```
 
-We’ll output the response using the following command: 
+### AD FS database permissions
+
+- PowerShell script to find the database name
 
 ```powershell
-$response.value
+$adfs = Get-WmiObject -Namespace "root/ADFS" -Class "SecurityTokenService"
+$connectionString = $adfs.ConfigurationDatabaseConnectionString
+$components = $connectionString.Split(';')
+$initialCatalogComponent = $components | Where-Object { $_.StartsWith("Initial Catalog") }
+$initialCatalog = $initialCatalogComponent.Split('=')[1].Trim()
+Write-Output "Connection String: $connectionString"
+Write-Output "Initial Catalog: $initialCatalog"
 ```
+
+- Configure the database permissions
+
+```powershell
+$ConnectionString = 'server=\\.\pipe\MICROSOFT##WID\tsql\query;database=OurDatabaseName;trusted_connection=true;'
+$SQLConnection= New-Object System.Data.SQLClient.SQLConnection($ConnectionString)
+$SQLConnection.Open()
+$SQLCommand = $SQLConnection.CreateCommand()
+$SQLCommand.CommandText = @"
+USE [master];  
+CREATE LOGIN [CONTOSO\MDIGMSA$] FROM WINDOWS WITH
+DEFAULT_DATABASE=[master];
+USE [OurDatabaseName];
+CREATE USER [CONTOSO\MDIGMSA$] FOR LOGIN
+[CONTOSO\MDIGMSA$];
+ALTER ROLE [db_datareader] ADD MEMBER [CONTOSO\MDIGMSA$];
+GRANT CONNECT TO [CONTOSO\MDIGMSA$];
+GRANT SELECT TO [CONTOSO\MDIGMSA$];
+"@
+$SqlDataReader = $SQLCommand.ExecuteReader()
+$SQLConnection.Close()
+```
+
+- Validate MDI sensor service
+
+```powershell
+Get-Service AATPSensor | Select-Object Status
+```
+
+- Enable AD FS IdP-Initiated Sign-On Page
+
+```powershell
+Get-AdfsProperties | Select-Object –ExpandProperty EnableIdPInitiatedSignonPage
+Set-AdfsProperties –EnableIdPInitiatedSignonPage $true
+```
+
+- Verify AD FS log ingestion to Defender XDR
+
+```kql
+IdentityLogonEvents
+| where Protocol =~ 'Adfs'
+```
+
+## Integrating MDI with AD CS
+### Implementing CA Auditing via PowerShell 
+
+1. Modify the CA audit settings
+
+```powershell
+certutil -setreg CA\AuditFilter 127
+```
+
+2. To ensure the new settings take effect immediately, cycle the Certificate Services 
+
+```powershell
+Stop-Service -Name certsvc
+Start-Service -Name certsvc
+```
+
+### Validating the AD CS integration
+
+1. Validate MDI sensor service
+
+```powershell
+Get-Service AATPSensor | Select-Object Status
+```
+
+2. Test certificate request with PowerShell
+
+```powershell
+$certRequest = @"
+[Version]
+Signature = "$Windows NT$"
+[NewRequest]
+Subject = "CN=TestUser, OU=YourOU, O=YourOrg, C=US"
+KeyLength = 2048
+Exportable = TRUE
+MachineKeySet = FALSE
+SMIME = FALSE
+PrivateKeyArchive = FALSE
+UserProtected = FALSE
+UseExistingKeySet = FALSE
+ProviderName = "Microsoft RSA SChannel
+Cryptographic Provider"
+ProviderType = 12
+RequestType = PKCS10
+KeyUsage = 0xa0
+"@
+```
+
+3. Save the certificate request data to a file
+
+```powershell
+$requestFile = "C:\Temp\ESC1_certRequest.inf"
+$certRequest | Out-File -FilePath $requestFile
+```
+
+4. Generate the certificate request
+
+```powershell
+$certReqFileOutput = "C:\Temp\ESC1_certReq.req"
+certreq -new $requestFile $certReqFileOutput
+```
+
+5. Verify AD CS log ingestion to Defender XDR
+
+```kql
+IdentityDirectoryEvents
+| where Protocol =~ "Adcs"
+```
+
+## Integrating MDI with Entra Connect
+
+- Verify Entra Connect log ingestion to Defender XDR
+
+```kql
+IdentityDirectoryEvents 
+| where Application =~ "Entra Connect"
+```
+
