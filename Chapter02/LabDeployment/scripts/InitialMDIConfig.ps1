@@ -17,4 +17,4 @@ Import-Module DefenderForIdentity
 New-MDIDSA -Identity "MDIGMSA" -GmsaGroupName "MDIGroup"
 
 # Create new gMSA for AD FS
-New-ADServiceAccount -Name "ADFSGMSA" -DNSHostName "adfs.$env:USERDNSDOMAIN" -PrincipalsAllowedToRetrieveManagedPassword "ADFS01$"
+New-ADServiceAccount -Name "ADFSGMSA" -DNSHostName "adfs.$env:USERDNSDOMAIN" -PrincipalsAllowedToRetrieveManagedPassword "ADFS0$"

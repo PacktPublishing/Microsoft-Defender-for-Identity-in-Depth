@@ -37,7 +37,7 @@ Install-AdfsFarm `
 	-CertificateThumbprint $cert.thumbprint `
 	-FederationServiceDisplayName "MDI AD FS Lab" `
     -FederationServiceName "adfs.$($DnsForestName)" `
-	-GroupServiceAccountIdentifier "$($domainName)\$($gMSA_ADFS)$" `
+	-GroupServiceAccountIdentifier "$($domainName)\$($gMSA_ADFS)" `
 	-OverwriteConfiguration
 
 # Set the IdP initiated sign-on page
