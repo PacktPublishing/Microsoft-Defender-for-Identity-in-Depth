@@ -9,7 +9,7 @@ param adminPassword string
 param adminUsername string
 
 @description('Location of scripts')
-param DeployADTemplateUri string = 'https://raw.githubusercontent.com/pthoor/deploy-azure/main/active-directory-with-windows-client/'
+param DeployADTemplateUri string = 'https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter02/LabDeployment/'
 
 //@description('When deploying the stack N times, define the instance - this will be appended to some resource names to avoid collisions.')
 //param deploymentNumber string = '1'
