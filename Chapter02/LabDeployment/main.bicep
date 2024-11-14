@@ -1,5 +1,5 @@
 @description('This is the location in which all the linked templates are stored.')
-param assetLocation string = 'https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter01/LabDeployment/'
+param assetLocation string = 'https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter02/LabDeployment/'
 
 // Key Vault parameters
 @description('Globally unique Vault name must only contain alphanumeric characters and dashes and cannot start with a number.')
@@ -149,7 +149,7 @@ var addcVMNameSuffix = 'dc'
 var adcsVMNameSuffix = 'cs'
 var adfsVMNameSuffix = 'adfs'
 var wapVMNameSuffix = 'wap'
-var ecVMNameSuffix = 'ec'
+var ecVMNameSuffix = 'entraconnect'
 var adfsVMName = toUpper('${adfsVMNameSuffix}')
 var adVMName = toUpper('${addcVMNameSuffix}')
 var adcsVMName = toUpper('${adcsVMNameSuffix}')
@@ -231,6 +231,32 @@ var adfsDSCTemplate = '${assetLocation}scripts/adfsDSC.zip'
 var adfsDSCConfigurationFunction = 'adfsDSCConfiguration.ps1\\Main'
 var wapDSCConfigurationFunction = 'wapDSCConfiguration.ps1\\Main'
 var WAPPubIpDnsFQDN = '${publicIPAddressDNSName}{0}.${toLower(replace(location, ' ', ''))}.cloudapp.azure.com'
+
+@description('The role id of Virtual Machine Contributor.')
+var vmContributorRoleId = '9980e02c-c2be-4d73-94e8-173b1dc7cf3c'
+
+@description('The user identity for the deployment script.')
+resource scriptIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-07-31-preview' = {
+  name: 'script-identity'
+  location: location
+}
+
+@description('The Storage Blob Data Reader Role definition from [Built In Roles](https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles).')
+resource vmContributorRoleDef 'Microsoft.Authorization/roleDefinitions@2022-05-01-preview' existing = {
+  scope: subscription()
+  name: vmContributorRoleId
+}
+
+@description('Assign permission for the deployment scripts user identity access to the read blobs from the storage account.')
+resource dataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: resourceGroup()
+  name: guid(vmContributorRoleDef.id, scriptIdentity.id, resourceGroup().id)
+  properties: {
+    principalType: 'ServicePrincipal'
+    principalId: scriptIdentity.properties.principalId
+    roleDefinitionId: vmContributorRoleDef.id
+  }
+}
 
 module automationaccount 'modules/automationaccount.bicep' = {
   name: 'automationaccount'
@@ -408,7 +434,7 @@ resource wapVMName_1_CopyCertToWAP 'Microsoft.Compute/virtualMachines/extensions
       fileUris: [
         CopyCertToWAPTemplateUri
       ]
-      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${CopyCertToWAPTemplate} -DCFQDN ${adVMName}.${adDomainName} -adminuser ${adminUsername} -password ${adminPassword} -instance ${i} -WapFqdn ${WAPPubIpDnsFQDN}'
+      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${CopyCertToWAPTemplate} -CAFQDN ${adcsVMName}.${adDomainName} -adminuser ${adminUsername} -password ${adminPassword} -instance ${i} -WapFqdn ${WAPPubIpDnsFQDN}'
     }
   }
   dependsOn: [
@@ -535,6 +561,28 @@ resource secret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   }
 }
 
+resource deploymentScript_RemoveExtensionDC 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'RemoveExtensionDC'
+  location: location
+  kind: 'AzureCLI'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${scriptIdentity.id}': {}
+    }
+  }
+  properties: {
+    azCliVersion: '2.52.0'
+    arguments: '${adVMName}0 ${resourceGroup().name}'
+    scriptContent: 'az vm extension delete -g $2 --vm-name $1 -n DeployAD --no-wait'
+    cleanupPreference: 'OnSuccess'
+    retentionInterval: 'PT1H'
+  }
+  dependsOn: [
+    adVMs
+  ]
+}
+
 resource adVMName_InitialMDIConfig 'Microsoft.Compute/virtualMachines/extensions@2015-06-15' = {
   name: '${adVMName}0/InitialMDIConfig'
   location: location
@@ -553,6 +601,32 @@ resource adVMName_InitialMDIConfig 'Microsoft.Compute/virtualMachines/extensions
   dependsOn: [
     adVMs
     virtualNetworkDNSUpdate
+    deploymentScript_RemoveExtensionDC
+    adcsVM
+  ]
+}
+
+resource deploymentScript_RemoveExtensionEntraConnect 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'RemoveExtensionEntraConnect'
+  location: location
+  kind: 'AzureCLI'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${scriptIdentity.id}': {}
+    }
+  }
+  properties: {
+    azCliVersion: '2.52.0'
+    arguments: '${ecVMName} ${resourceGroup().name}'
+    scriptContent: 'az vm extension delete -g $2 --vm-name $1 -n joindomain --no-wait'
+    cleanupPreference: 'OnSuccess'
+    retentionInterval: 'PT1H'
+  }
+  dependsOn: [
+    adVMs
+    ecVM
+    adVMName_InitialMDIConfig
   ]
 }
 

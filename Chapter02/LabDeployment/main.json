@@ -5,13 +5,13 @@
     "_generator": {
       "name": "bicep",
       "version": "0.31.34.60546",
-      "templateHash": "17966283437772076118"
+      "templateHash": "2803769802894125367"
     }
   },
   "parameters": {
     "assetLocation": {
       "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter01/LabDeployment/",
+      "defaultValue": "https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter02/LabDeployment/",
       "metadata": {
         "description": "This is the location in which all the linked templates are stored."
       }
@@ -215,7 +215,7 @@
     "adcsVMNameSuffix": "cs",
     "adfsVMNameSuffix": "adfs",
     "wapVMNameSuffix": "wap",
-    "ecVMNameSuffix": "ec",
+    "ecVMNameSuffix": "entraconnect",
     "adfsVMName": "[toUpper(format('{0}', variables('adfsVMNameSuffix')))]",
     "adVMName": "[toUpper(format('{0}', variables('addcVMNameSuffix')))]",
     "adcsVMName": "[toUpper(format('{0}', variables('adcsVMNameSuffix')))]",
@@ -244,9 +244,35 @@
     "adfsDSCTemplate": "[format('{0}scripts/adfsDSC.zip', parameters('assetLocation'))]",
     "adfsDSCConfigurationFunction": "adfsDSCConfiguration.ps1\\Main",
     "wapDSCConfigurationFunction": "wapDSCConfiguration.ps1\\Main",
-    "WAPPubIpDnsFQDN": "[format('{0}{{0}}.{1}.cloudapp.azure.com', variables('publicIPAddressDNSName'), toLower(replace(parameters('location'), ' ', '')))]"
+    "WAPPubIpDnsFQDN": "[format('{0}{{0}}.{1}.cloudapp.azure.com', variables('publicIPAddressDNSName'), toLower(replace(parameters('location'), ' ', '')))]",
+    "vmContributorRoleId": "9980e02c-c2be-4d73-94e8-173b1dc7cf3c"
   },
   "resources": [
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-07-31-preview",
+      "name": "script-identity",
+      "location": "[parameters('location')]",
+      "metadata": {
+        "description": "The user identity for the deployment script."
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('vmContributorRoleId')), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity'), resourceGroup().id)]",
+      "properties": {
+        "principalType": "ServicePrincipal",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity'), '2023-07-31-preview').principalId]",
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('vmContributorRoleId'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity')]"
+      ],
+      "metadata": {
+        "description": "Assign permission for the deployment scripts user identity access to the read blobs from the storage account."
+      }
+    },
     {
       "copy": {
         "name": "adfsVMName_1_InstallADFS",
@@ -297,7 +323,7 @@
           "fileUris": [
             "[variables('CopyCertToWAPTemplateUri')]"
           ],
-          "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -File {0} -DCFQDN {1}.{2} -adminuser {3} -password {4} -instance {5} -WapFqdn {6}', variables('CopyCertToWAPTemplate'), variables('adVMName'), parameters('adDomainName'), parameters('adminUsername'), parameters('adminPassword'), range(0, variables('adfsDeployCount'))[copyIndex()], variables('WAPPubIpDnsFQDN'))]"
+          "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -File {0} -CAFQDN {1}.{2} -adminuser {3} -password {4} -instance {5} -WapFqdn {6}', variables('CopyCertToWAPTemplate'), variables('adcsVMName'), parameters('adDomainName'), parameters('adminUsername'), parameters('adminPassword'), range(0, variables('adfsDeployCount'))[copyIndex()], variables('WAPPubIpDnsFQDN'))]"
         }
       },
       "dependsOn": [
@@ -415,6 +441,30 @@
       ]
     },
     {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "RemoveExtensionDC",
+      "location": "[parameters('location')]",
+      "kind": "AzureCLI",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity'))]": {}
+        }
+      },
+      "properties": {
+        "azCliVersion": "2.52.0",
+        "arguments": "[format('{0}0 {1}', variables('adVMName'), resourceGroup().name)]",
+        "scriptContent": "az vm extension delete -g $2 --vm-name $1 -n DeployAD --no-wait",
+        "cleanupPreference": "OnSuccess",
+        "retentionInterval": "PT1H"
+      },
+      "dependsOn": [
+        "adVMs",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity')]"
+      ]
+    },
+    {
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "apiVersion": "2015-06-15",
       "name": "[format('{0}0/InitialMDIConfig', variables('adVMName'))]",
@@ -432,8 +482,36 @@
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'adcsVM')]",
         "adVMs",
+        "[resourceId('Microsoft.Resources/deploymentScripts', 'RemoveExtensionDC')]",
         "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2023-08-01",
+      "name": "RemoveExtensionEntraConnect",
+      "location": "[parameters('location')]",
+      "kind": "AzureCLI",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[format('{0}', resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity'))]": {}
+        }
+      },
+      "properties": {
+        "azCliVersion": "2.52.0",
+        "arguments": "[format('{0} {1}', variables('ecVMName'), resourceGroup().name)]",
+        "scriptContent": "az vm extension delete -g $2 --vm-name $1 -n joindomain --no-wait",
+        "cleanupPreference": "OnSuccess",
+        "retentionInterval": "PT1H"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', split(format('{0}0/InitialMDIConfig', variables('adVMName')), '/')[0], split(format('{0}0/InitialMDIConfig', variables('adVMName')), '/')[1])]",
+        "adVMs",
+        "[resourceId('Microsoft.Resources/deployments', 'ecVMs')]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', 'script-identity')]"
       ]
     },
     {
@@ -1856,7 +1934,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.31.34.60546",
-              "templateHash": "3821436455904293278"
+              "templateHash": "15562773349359523144"
             }
           },
           "parameters": {
@@ -1881,7 +1959,7 @@
             },
             "DeployADTemplateUri": {
               "type": "string",
-              "defaultValue": "https://raw.githubusercontent.com/pthoor/deploy-azure/main/active-directory-with-windows-client/",
+              "defaultValue": "https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter02/LabDeployment/",
               "metadata": {
                 "description": "Location of scripts"
               }
