@@ -3,10 +3,7 @@ param (
 	[string]$gMSA_ADFS,
 
     [Parameter(Mandatory)]
-    [string]$IP_ADFS,
-
-	[Parameter(Mandatory)]
-	[string]$WapFqdn
+    [string]$IP_ADFS
 )
 
 # Install modules
@@ -20,10 +17,6 @@ $wmiDomain = Get-WmiObject Win32_NTDomain -Filter "DnsForestName = '$( (Get-WmiO
 $DomainName = $wmiDomain.DomainName
 $DnsForestName = $wmiDomain.DnsForestName
 $DomainControllerName = $wmiDomain.DomainControllerName -replace '\\',''
-
-$Index = $ComputerName.Substring($ComputerName.Length-1,1)
-$Subject = $WapFqdn -f $Index
-Write-Host "Subject: $Subject"
 
 # Create a self-signed certificate for AD FS
 $cert = New-SelfSignedCertificate -DnsName "adfs.$($DnsForestName)" -CertStoreLocation cert:\LocalMachine\My
@@ -48,4 +41,5 @@ Install-WindowsFeature -Name DNS -IncludeManagementTools
 Import-Module DNSServer
 Add-DnsServerResourceRecordA -Name "adfs" -ZoneName $DnsForestName -IPv4Address $IP_ADFS -ComputerName $DomainControllerName
 
+# Restart computer
 Restart-Computer
