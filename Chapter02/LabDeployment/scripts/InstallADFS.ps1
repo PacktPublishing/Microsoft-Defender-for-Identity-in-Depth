@@ -48,4 +48,4 @@ Install-WindowsFeature -Name DNS -IncludeManagementTools
 Import-Module DNSServer
 Add-DnsServerResourceRecordA -Name "adfs" -ZoneName $DnsForestName -IPv4Address $IP_ADFS -ComputerName $DomainControllerName
 
-Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Restart-Computer
