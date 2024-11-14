@@ -1,6 +1,6 @@
 param (
     [Parameter(Mandatory)]
-    [string]$DCFQDN,
+    [string]$CAFQDN,
 
     [Parameter(Mandatory)]
     [string]$adminuser,
@@ -16,7 +16,7 @@ param (
 )
 
 $ErrorActionPreference = "Stop"
-$arr = $DCFQDN.split('.')
+$arr = $CAFQDN.split('.')
 $DomainName = $arr[1]
 $SecPW=ConvertTo-SecureString $password -AsPlainText -Force
 $File=$null
@@ -29,8 +29,8 @@ md "c:\temp" -ErrorAction Ignore
 md "c:\AADLab" -ErrorAction Ignore
 
 if (!(Test-Path -Path "$($completeFile)0")) {
-    $PathToCert="\\$DCFQDN\src"
-    net use "\\$DCFQDN\src" $password /USER:$adminuser
+    $PathToCert="\\$CAFQDN\src"
+    net use "\\$CAFQDN\src" $password /USER:$adminuser
     Copy-Item -Path "$PathToCert\*.pfx" -Destination "c:\temp\" -Recurse -Force
     Copy-Item -Path "$PathToCert\*.cer" -Destination "c:\temp\" -Recurse -Force
     #record that we got this far
@@ -98,13 +98,11 @@ if (!(Test-Path -Path "$($completeFile)3")) {
 	$Subject = $WapFqdn -f $instance
 
 	$links = @(
-		@{site="http://connect.microsoft.com/site1164";name="Azure AD Connect Home";icon=$ieicon},
-		@{site="https://docs.microsoft.com/en-us/azure/active-directory/connect/active-directory-aadconnect";name="Azure AD Docs";icon=$ieicon},
+		@{site="https://learn.microsoft.com/en-us/entra/identity/hybrid/whatis-hybrid-identity";name="Microsoft Entra Connect";icon=$ieicon},
 		@{site="https://$Subject/adfs/ls/idpinitiatedsignon.aspx";name="ADFS IDP Signon";icon=$ieicon},
 		@{site="%windir%\system32\WindowsPowerShell\v1.0\PowerShell_ISE.exe";name="PowerShell ISE";icon="%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell_ise.exe, 0"},
 		@{site="%windir%\system32\services.msc";name="Services";icon="%windir%\system32\filemgmt.dll, 0"},
 		@{site="%windir%\system32\RAMgmtUI.exe";name="Remote Access Management";icon="%SystemRoot%\System32\damgmtres.dll, 0"},
-		@{site="c:\AADLab";name="AAD Lab Files";icon="%windir%\explorer.exe, 13"}
 	)
 
 	foreach($link in $links){
