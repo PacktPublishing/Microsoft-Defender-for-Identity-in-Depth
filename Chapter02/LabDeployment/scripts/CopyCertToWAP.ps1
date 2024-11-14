@@ -88,30 +88,3 @@ Start-Service -Name appproxysvc
     #record that we got this far
     New-Item -ItemType file "$($completeFile)2"
 }
-
-if (!(Test-Path -Path "$($completeFile)3")) {
-    # Shortcuts
-
-	$WshShell = New-Object -comObject WScript.Shell
-	$dt="C:\Users\Public\Desktop\"
-	$ieicon="%ProgramFiles%\Internet Explorer\iexplore.exe, 0"
-	$Subject = $WapFqdn -f $instance
-
-	$links = @(
-		@{site="https://learn.microsoft.com/en-us/entra/identity/hybrid/whatis-hybrid-identity";name="Microsoft Entra Connect";icon=$ieicon},
-		@{site="https://$Subject/adfs/ls/idpinitiatedsignon.aspx";name="ADFS IDP Signon";icon=$ieicon},
-		@{site="%windir%\system32\WindowsPowerShell\v1.0\PowerShell_ISE.exe";name="PowerShell ISE";icon="%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell_ise.exe, 0"},
-		@{site="%windir%\system32\services.msc";name="Services";icon="%windir%\system32\filemgmt.dll, 0"},
-		@{site="%windir%\system32\RAMgmtUI.exe";name="Remote Access Management";icon="%SystemRoot%\System32\damgmtres.dll, 0"},
-	)
-
-	foreach($link in $links){
-		$Shortcut = $WshShell.CreateShortcut("$($dt)$($link.name).lnk")
-		$Shortcut.TargetPath = $link.site
-		$Shortcut.IconLocation = $link.icon
-		$Shortcut.Save()
-	}
-
-    #record that we got this far
-    New-Item -ItemType file "$($completeFile)3"
-}
