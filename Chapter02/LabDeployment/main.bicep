@@ -348,7 +348,6 @@ module adcsVM 'modules/compute/vm-adcs.bicep' = {
   }
   dependsOn: [
     virtualNetworkDNSUpdate
-    adfsVMs
   ]
 }
 
@@ -391,7 +390,6 @@ module ecVM 'modules/compute/vm-entraconnect.bicep' = {
   }
   dependsOn: [
     virtualNetworkDNSUpdate
-    adVMs
   ]
 }
 
@@ -419,29 +417,29 @@ resource adfsVMName_1_InstallADFS 'Microsoft.Compute/virtualMachines/extensions@
   ]
 }]
 
-resource wapVMName_1_CopyCertToWAP 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = [for i in range(0, adfsDeployCount): {
-  name: '${wapVMName}${i}/CopyCertToWAP'
-  location: location
-  tags: {
-    displayName: 'ConfigureWAP'
-  }
-  properties: {
-    publisher: 'Microsoft.Compute'
-    type: 'CustomScriptExtension'
-    typeHandlerVersion: '1.9'
-    autoUpgradeMinorVersion: true
-    settings: {
-      fileUris: [
-        CopyCertToWAPTemplateUri
-      ]
-      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${CopyCertToWAPTemplate} -CAFQDN ${adcsVMName}.${adDomainName} -adminuser ${adminUsername} -password ${adminPassword} -instance ${i} -WapFqdn ${WAPPubIpDnsFQDN}'
-    }
-  }
-  dependsOn: [
-    adfsVMs
-    adfsVMName_1_InstallADFS
-  ]
-}]
+//resource wapVMName_1_CopyCertToWAP 'Microsoft.Compute/virtualMachines/extensions@2022-08-01' = [for i in range(0, adfsDeployCount): {
+//  name: '${wapVMName}${i}/CopyCertToWAP'
+//  location: location
+//  tags: {
+//    displayName: 'ConfigureWAP'
+//  }
+//  properties: {
+//    publisher: 'Microsoft.Compute'
+//    type: 'CustomScriptExtension'
+//    typeHandlerVersion: '1.9'
+//    autoUpgradeMinorVersion: true
+//    settings: {
+//      fileUris: [
+//        CopyCertToWAPTemplateUri
+//      ]
+//      commandToExecute: 'powershell -ExecutionPolicy Unrestricted -File ${CopyCertToWAPTemplate} -CAFQDN ${adcsVMName}.${adDomainName} -adminuser ${adminUsername} -password ${adminPassword} -instance ${i} -WapFqdn ${WAPPubIpDnsFQDN}'
+//    }
+//  }
+//  dependsOn: [
+//    adfsVMName_1_InstallADFS
+//    adcsVMName_InstallADCS
+//  ]
+//}]
 
 resource adcsVMName_InstallADCS 'Microsoft.Compute/virtualMachines/extensions@2015-06-15' = {
   name: '${adcsVMName}/InstallADCS'
