@@ -2,7 +2,7 @@
 $domain = 'CONTOSO'
 $domainUsers = $domain + '\Domain Users'
 $outputFolder = 'C:\Temp\'
-$githubRepo = 'https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter01/LabDeployment/ESCs/'
+$githubRepo = 'https://raw.githubusercontent.com/PacktPublishing/Microsoft-Defender-for-Identity-in-Depth/main/Chapter02/LabDeployment/ESCs/'
 $PSPKIAuditrepoUrl = "https://github.com/GhostPack/PSPKIAudit/archive/refs/heads/master.zip"
 $PSPKIAuditdestinationPath = "C:\Temp\PSPKIAudit.zip"
 $PSPKIAuditextractPath = "C:\Temp\"

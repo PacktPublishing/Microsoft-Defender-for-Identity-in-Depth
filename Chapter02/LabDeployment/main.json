@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.31.92.45157",
-      "templateHash": "1617167740709284164"
+      "templateHash": "17213490029467059943"
     }
   },
   "parameters": {
@@ -2529,6 +2529,7 @@
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'adfsVMs')]",
         "adVMs",
         "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
       ]
