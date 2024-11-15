@@ -349,6 +349,7 @@ module adcsVM 'modules/compute/vm-adcs.bicep' = {
   dependsOn: [
     virtualNetworkDNSUpdate
     adVMs
+    adfsVMs
   ]
 }
 
