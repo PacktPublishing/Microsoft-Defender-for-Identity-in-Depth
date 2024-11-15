@@ -5,13 +5,12 @@ $DomainName     = $wmidomain.DnsForestName
 $ComputerName   = $wmiDomain.PSComputerName
 $CARootName     = "$($shortDomain.ToLower())-$($ComputerName.ToUpper())-CA"
 $CAServerFQDN   = "$ComputerName.$DomainName"
-$CACommonName   = "$($wmiDomain.DomainName)" + " Root CA"
+$CertPath       = "C:\src\"
 
 # Set CA configuration parameters
 $CAConfigArgs = @{
     CAType = "EnterpriseRootCA"
-    CARootName = $CARootName
-    CACommonName = $CACommonName
+    CACommonName = $CARootName
     ValidityPeriodUnits = 5
     ValidityPeriod = "Years"
     CryptoProvider = "RSA#Microsoft Software Key Storage Provider"
@@ -22,7 +21,7 @@ $CAConfigArgs = @{
 }
 
 # Create src folder
-New-Item -Path "C:\src" -ItemType Directory -Force
+New-Item -Path $CertPath -ItemType Directory -Force
 
 # Install AD CS role
 Install-WindowsFeature ADCS-Cert-Authority, ADCS-Web-Enrollment -IncludeManagementTools
@@ -36,9 +35,8 @@ certutil -setreg CA\AuditFilter 127
 # Restart the AD CS service to apply the changes
 Restart-Service CertSvc
 
-#Install-AdcsWebEnrollment -Force
 # Install ADCS Web Enrollment
-Install-AdcsWebEnrollment
+Install-AdcsWebEnrollment -Confirm:$false -Force
 
 # Export Root Certificate
 function Export-RootCert {
@@ -50,7 +48,8 @@ function Export-RootCert {
     if ($null -eq $rootCert) {
         Write-Output "ERROR: Root certificate with subject '$rootDN' not found. Export canceled."
     } else {
-        Export-Certificate -FilePath $CertPath -Cert $rootCert
+        $fileName = $CertPath + $rawCert.DnsNameList.Punycode + ".cer" 
+        Export-Certificate -FilePath $fileName -Cert $rootCert
         Write-Output "Root certificate exported to $CertPath."
     }
 }

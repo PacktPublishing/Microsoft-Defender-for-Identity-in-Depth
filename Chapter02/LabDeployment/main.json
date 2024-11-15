@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.31.34.60546",
-      "templateHash": "2803769802894125367"
+      "version": "0.31.92.45157",
+      "templateHash": "6274912024108222321"
     }
   },
   "parameters": {
@@ -303,35 +303,6 @@
       ]
     },
     {
-      "copy": {
-        "name": "wapVMName_1_CopyCertToWAP",
-        "count": "[length(range(0, variables('adfsDeployCount')))]"
-      },
-      "type": "Microsoft.Compute/virtualMachines/extensions",
-      "apiVersion": "2022-08-01",
-      "name": "[format('{0}{1}/CopyCertToWAP', variables('wapVMName'), range(0, variables('adfsDeployCount'))[copyIndex()])]",
-      "location": "[parameters('location')]",
-      "tags": {
-        "displayName": "ConfigureWAP"
-      },
-      "properties": {
-        "publisher": "Microsoft.Compute",
-        "type": "CustomScriptExtension",
-        "typeHandlerVersion": "1.9",
-        "autoUpgradeMinorVersion": true,
-        "settings": {
-          "fileUris": [
-            "[variables('CopyCertToWAPTemplateUri')]"
-          ],
-          "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -File {0} -CAFQDN {1}.{2} -adminuser {3} -password {4} -instance {5} -WapFqdn {6}', variables('CopyCertToWAPTemplate'), variables('adcsVMName'), parameters('adDomainName'), parameters('adminUsername'), parameters('adminPassword'), range(0, variables('adfsDeployCount'))[copyIndex()], variables('WAPPubIpDnsFQDN'))]"
-        }
-      },
-      "dependsOn": [
-        "adfsVMName_1_InstallADFS",
-        "[resourceId('Microsoft.Resources/deployments', 'adfsVMs')]"
-      ]
-    },
-    {
       "type": "Microsoft.Compute/virtualMachines/extensions",
       "apiVersion": "2015-06-15",
       "name": "[format('{0}/InstallADCS', variables('adcsVMName'))]",
@@ -565,8 +536,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "8438977343371438934"
+              "version": "0.31.92.45157",
+              "templateHash": "1037023674469219263"
             }
           },
           "parameters": {
@@ -693,8 +664,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "11232478671600474714"
+              "version": "0.31.92.45157",
+              "templateHash": "11583477001635007746"
             }
           },
           "parameters": {
@@ -853,8 +824,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "5259364704765107072"
+              "version": "0.31.92.45157",
+              "templateHash": "9932476507238958724"
             }
           },
           "parameters": {
@@ -1070,8 +1041,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "13093383323364787054"
+              "version": "0.31.92.45157",
+              "templateHash": "14491245035061417076"
             }
           },
           "parameters": {
@@ -1806,8 +1777,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "10617784135016289469"
+              "version": "0.31.92.45157",
+              "templateHash": "17659849325945827765"
             }
           },
           "parameters": {
@@ -1933,8 +1904,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "15562773349359523144"
+              "version": "0.31.92.45157",
+              "templateHash": "3324251400035198246"
             }
           },
           "parameters": {
@@ -2232,8 +2203,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "496452779255458988"
+              "version": "0.31.92.45157",
+              "templateHash": "16044548161561609269"
             }
           },
           "parameters": {
@@ -2336,8 +2307,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "17720452178727969936"
+              "version": "0.31.92.45157",
+              "templateHash": "13298597289308216801"
             }
           },
           "parameters": {
@@ -2558,7 +2529,6 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'adfsVMs')]",
         "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
       ]
     },
@@ -2621,8 +2591,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "16530818107784202689"
+              "version": "0.31.92.45157",
+              "templateHash": "12392541175177014130"
             }
           },
           "parameters": {
@@ -3005,8 +2975,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "2848299676501231566"
+              "version": "0.31.92.45157",
+              "templateHash": "904644094941426706"
             }
           },
           "parameters": {
@@ -3226,7 +3196,6 @@
         }
       },
       "dependsOn": [
-        "adVMs",
         "[resourceId('Microsoft.Resources/deployments', 'virtualNetworkDNSUpdate')]"
       ]
     },
@@ -3262,8 +3231,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.31.34.60546",
-              "templateHash": "4593147053320194333"
+              "version": "0.31.92.45157",
+              "templateHash": "2480471465625791886"
             }
           },
           "parameters": {
