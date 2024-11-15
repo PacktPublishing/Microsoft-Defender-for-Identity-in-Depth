@@ -348,6 +348,7 @@ module adcsVM 'modules/compute/vm-adcs.bicep' = {
   }
   dependsOn: [
     virtualNetworkDNSUpdate
+    adVMs
   ]
 }
 
@@ -371,6 +372,7 @@ module adfsVMs 'modules/compute/vm-adfs.bicep' = {
   }
   dependsOn: [
     virtualNetworkDNSUpdate
+    adVMs
   ]
 }
 
@@ -390,6 +392,7 @@ module ecVM 'modules/compute/vm-entraconnect.bicep' = {
   }
   dependsOn: [
     virtualNetworkDNSUpdate
+    adVMs
   ]
 }
 
