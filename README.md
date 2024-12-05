@@ -97,7 +97,7 @@ $alerts.value | ForEach-Object {
 
 In this GitHub repository, you will find the scripts, KQL queries, lab files, and configuration files used in the book. The book is divided into the following chapters:
 - Chapter 1: Introduction to Microsoft Defender for Identity
-- [Chapter 2: Setting up Microsoft Defender for Identity](./Chapter2/README.md)
+- [Chapter 2: Setting up Microsoft Defender for Identity](./Chapter02/README.md)
 - [Chapter 3: Leveraging MDI PowerShell for Automation and Management](./Chapter03/README.md)
 - [Chapter 4: Integrating MDI with AD FS, AD CS, and Entra Connect](./Chapter04/README.md)
 - [Chapter 5: Extending MDI capabilities through APIs](./Chapter05/README.md)
