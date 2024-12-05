@@ -1,7 +1,24 @@
 # Microsoft Defender for Identity in Depth
+
+<a href="https://www.packtpub.com/en-us/product/microsoft-defender-for-identity-in-depth-9781835884492"><img src="https://content.packt.com/B22503/cover_image_small.jpg" alt="no-image" height="256px" align="right"></a>
 This is the code repository for [Microsoft Defender for Identity in Depth](https://www.packtpub.com/en-us/product/microsoft-defender-for-identity-in-depth-9781835884492), published by Packt.
 
 An exhaustive guide to ITDR, breach prevention, and cyberattack response.
+
+## What is this book about?
+Learn all about Microsoft Defender for Identity in depth and master the art of securing digital identities against emerging threats with hands-on guidance to elevate your cybersecurity skills to new heights.
+
+This book covers the following exciting features:
+* Ensure a secure and efficient MDI setup for peak defense capabilities
+* Unlock automation with PowerShell scripting magic
+* Seamlessly blend MDI with AD CS, AD FS, and Entra Connect
+* Expand MDI’s reach and impact through APIs
+* Pioneer advanced threat hunting with KQL expertise in Defender XDR
+* Craft expert, strategic responses to security alerts
+* Optimize action accounts for maximum agility
+* Establish a robust and rigid ITDR framework
+
+If you feel this book is for you, get your [copy](https://www.amazon.com/Microsoft-Defender-Identity-Depth-cyberattack/dp/B0DK1HW2KX/) today!
 
 ## Table of Contents
 - [Introductions and Navigations](#introductions-and-navigations)
@@ -91,7 +108,7 @@ In this GitHub repository, you will find the scripts, KQL queries, lab files, an
 - [Chapter 10: Navigating Challenges: MDI Troubleshooting and Optimization](./Chapter10/README.md)
 
 **Following is what you need for this book:**
-This book is for ... 
+If you’re an IT or security professional looking to enhance your cybersecurity skills, especially in identity protection and threat management with Microsoft Defender for Identity (MDI), then this book is for you. It's perfect for system administrators, cybersecurity analysts, and cloud engineers who want to strengthen their expertise in MDI. A basic understanding of cybersecurity principles, as well as familiarity with Microsoft environments and Active Directory are recommended prerequisites for maximizing your learning experience.
 
 With the following software and hardware list you can run all code files present in the book.
 
@@ -122,6 +139,13 @@ You will require the following:
 - Optional: If you want to follow along with proxy setup and configuration you need 1-2 virtual machines with Ubuntu 22.04 or later installed
     - Make the installation of Ubuntu a minimal server installation
 
+### Related products
+* Microsoft Intune Cookbook [[Packt]](https://www.packtpub.com/en-us/product/microsoft-intune-cookbook-9781805126546) [[Amazon]](https://www.amazon.com/dp/1805126547)
+
+* Mastering Microsoft 365 Defender [[Packt]](https://www.packtpub.com/en-us/product/mastering-microsoft-365-defender-9781803241708) [[Amazon]](https://www.amazon.com/dp/1803241705)
 
 ## Get to Know the Author
 **Pierre Thoor**
+ is a Microsoft MVP in security and a dedicated cybersecurity expert with a focus on identity protection and threat detection. As a first-time author, he shares his extensive knowledge in this book. Pierre hosts the Security Dojo Podcast and blogs at thoor.tech, where he explores Microsoft security topics. As an international speaker, he makes complex security subjects accessible to audiences worldwide.
+At Onevinn, Pierre delivers advanced security solutions that strengthen organizations’ defenses against cyber threats. He specializes in Microsoft Sentinel and Microsoft Defender XDR. Pierre is also an expert in Azure Governance, including the Cloud Adoption Framework and enterprise-scale landing zones, ensuring that security is integrated into every aspect of cloud adoption. With skills in DevOps practices, Kusto Query Language (KQL), and developing solutions with Bicep and PowerShell, he implements automation and infrastructure as code to enhance security operations.
+Pierre assists organizations in navigating the complexities of modern cybersecurity challenges.
